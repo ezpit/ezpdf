@@ -1,8 +1,10 @@
 import os
 from collections import Counter
+from io import StringIO
 from pathlib import Path
 
 import numpy as np
+import numpy.typing as npt
 
 from .elem_tables import AFF_ELEMENTS
 
@@ -132,7 +134,7 @@ def parse_composition(composition: str | dict[str, float]) -> dict[str, float]:
     if not composition_dict:
         raise ValueError(f'Invalid composition string "{composition}": no element found')
 
-    return composition_dict
+    return dict(composition_dict)
 
 
 def composition_weights(
@@ -258,7 +260,7 @@ def load_atom_name_positions(
         return None
 
     atom_names: list[str] = []
-    atom_positions: list[list[float]] = []
+    atom_positions: npt.ArrayLike = []
     for line in lines:
         parts = line.split()
 
@@ -391,3 +393,48 @@ def make_folder(file_path):
 def save_txt(filename, q_Iq):
     make_folder(filename)
     np.savetxt(filename, q_Iq)
+
+
+def detect_header_lines(path, min_cols=2):
+    """
+    [EN] Automatically detect the number of header lines to skip.
+
+    [KR] 데이터 파일에서 건너뛸 헤더(Header) 라인 수를 자동으로 감지합니다.
+    """
+    skip = 0
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            stripped = line.strip()
+            if not stripped:  # [EN] Skip empty lines / [KR] 빈 줄 무시
+                skip += 1
+                continue
+            parts = stripped.split()
+            if stripped.startswith("#"):  # [EN] Skip comments / [KR] 주석(#) 무시
+                skip += 1
+                continue
+            if len(parts) < min_cols:  # [EN] Skip if not enough columns / [KR] 열 개수 부족 시 무시
+                skip += 1
+                continue
+            try:
+                for p in parts[:min_cols]:
+                    float(p)  # [EN] Check if float / [KR] 실수형 변환 가능 여부 확인
+                break
+            except ValueError:
+                skip += 1
+                continue
+    return skip
+
+
+def load_qiq_file(path, min_cols=2, usecols=(0, 1)):
+    """
+    [EN] Load Q vs I(q) data from file using automatic header detection.
+
+    [KR] 헤더 자동 감지 기능을 사용하여 파일에서 Q vs I(q) 데이터를 로드합니다.
+    """
+    skip = detect_header_lines(path, min_cols=min_cols)
+    with open(path, "rb") as f:
+        raw = f.read()
+    text = raw.decode("latin1")  # [EN] Decode using latin1 to avoid errors / [KR] 인코딩 오류 방지
+    buf = StringIO(text)
+    data = np.loadtxt(buf, skiprows=skip, usecols=usecols)
+    return data

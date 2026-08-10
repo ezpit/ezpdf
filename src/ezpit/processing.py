@@ -1,4 +1,5 @@
-import io
+from __future__ import annotations
+
 import os
 import warnings
 from collections import (
@@ -7,6 +8,7 @@ from collections import (
 from math import (
     factorial,
 )  # [EN] Mathematical factorial function / [KR] 수학 팩토리얼 함수
+from pathlib import Path
 
 import numpy as np
 
@@ -21,6 +23,15 @@ from scipy.linalg import (
     cho_solve,
 )  # [EN] Linear algebra solvers (Cholesky decomposition) / [KR] 선형대수 계산 (촐레스키 분해 및 해 구하기)
 from scipy.spatial.distance import cdist
+
+from .io import load_qiq_file
+
+IntVector = np.ndarray[
+    tuple[int], np.dtype[np.int64]
+]  # [EN] Type hint for a 1D array of integers / [KR] 정수 1차원 배열 타입 힌트
+FloatVector = np.ndarray[
+    tuple[int], np.dtype[np.float64]
+]  # [EN] Type hint for a 1D array of floats / [KR] 실수 1차원 배열 타입 힌트
 
 # Messages already reported by _warn_once(), so a warning about the same
 # situation is not repeated on every recalculation (parameter sliders trigger
@@ -46,7 +57,10 @@ def reset_warning_history():
     _WARNED_MESSAGES.clear()
 
 
-def load_atom_name_positions(file_path, valid_symbols) -> tuple[list[str], np.ndarray[int, int], np.dtype[np.float32]]:
+def load_atom_name_positions(
+    file_path: str | Path,
+    valid_symbols: list[str],
+) -> tuple[list[str], np.ndarray[tuple[int, int], np.dtype[np.float64]]]:
     """
     [EN] Load atom names and (x, y, z) positions from an .xyz file.
 
@@ -94,14 +108,16 @@ def load_atom_name_positions(file_path, valid_symbols) -> tuple[list[str], np.nd
         atom_names (list[str])        : [EN] Species symbols / [KR] 화학종 기호 리스트
         atom_positions (numpy.ndarray): [EN] (N, 3) float array / [KR] (N, 3) 실수 배열
     """
-    with open(file_path) as f:
-        lines = f.readlines()
+    if not isinstance(file_path, Path):
+        file_path = Path(file_path)
+
+    lines = file_path.absolute().read_text(encoding="utf-8", errors="ignore").splitlines()
 
     # [EN] Accepted-symbol set from the form-factor table (may contain ions).
     # [KR] form-factor 테이블의 허용 기호 집합 (이온 포함 가능).
     symbol_set = set(valid_symbols)
 
-    def normalize_symbol(tok):
+    def normalize_symbol(tok: str) -> str | None:
         # [EN] Canonical accepted symbol for tok, or None.
         #      1) exact match (keeps ions as in the table, e.g. 'Fe2+')
         #      2) case-normalised element part (e.g. 'FE'->'Fe')
@@ -114,8 +130,8 @@ def load_atom_name_positions(file_path, valid_symbols) -> tuple[list[str], np.nd
             return cap
         return None
 
-    atom_names = []
-    atom_positions = []
+    atom_names: list[str] = []
+    atom_positions: list[list[float]] = []
     for line in lines:
         parts = line.split()
 
@@ -147,8 +163,6 @@ def load_atom_name_positions(file_path, valid_symbols) -> tuple[list[str], np.nd
             "your form-factor table (valid_symbols)."
         )
 
-    atom_positions = np.array(atom_positions, dtype=float)
-
     # ------------------------------------------------------------------
     # [EN] Report what was actually read from the file. The total is the number
     #      of valid atom/ion lines found — the header atom-count (if any) is NEVER
@@ -163,7 +177,7 @@ def load_atom_name_positions(file_path, valid_symbols) -> tuple[list[str], np.nd
     ion_names = [s for s in atom_names if ("+" in s) or ("-" in s)]
     neutral_count = total - len(ion_names)
 
-    fname = file_path.replace("\\", "/").split("/")[-1]
+    fname = file_path.name
     if ion_names:
         unique_ions = sorted(set(ion_names))
         print(
@@ -174,10 +188,10 @@ def load_atom_name_positions(file_path, valid_symbols) -> tuple[list[str], np.nd
     else:
         print(f"[load_atom_name_positions] '{fname}': {total} atoms read (all neutral, no ions).")
 
-    return atom_names, atom_positions
+    return atom_names, np.array(atom_positions, dtype=float)
 
 
-def parse_composition(composition: str | dict[str, float]):
+def parse_composition(composition: str | dict[str, float]) -> dict[str, float]:
     """
     [EN] Parse a composition string into a dictionary (EZPDF_GUI_3 helpers.py behaviour).
 
@@ -284,7 +298,7 @@ def parse_composition(composition: str | dict[str, float]):
     if not composition_dict:
         raise ValueError(f'Invalid composition string "{composition}": no element found')
 
-    return composition_dict
+    return dict(composition_dict)
 
 
 def composition_weights(
@@ -355,7 +369,7 @@ def convert_atom_names(composition: str | dict[str, float]) -> list[str]:
 
 def group_atoms(
     atom_names: list[str],
-) -> tuple[list[str], np.ndarray[tuple[int], np.dtype[np.int64]], np.ndarray[tuple[int], np.dtype[np.int64]]]:
+) -> tuple[list[str], IntVector, IntVector]:
     """
     [EN] Group identical atoms and count their occurrences.
 
@@ -398,7 +412,9 @@ def save_txt(filename, q_Iq):
     np.savetxt(filename, q_Iq)
 
 
-def create_atom_distance_matrix(atom_positions):
+def create_atom_distance_matrix(
+    atom_positions: np.ndarray[tuple[int, int, int], np.dtype[np.float64]],
+) -> np.ndarray:
     """
     [EN] Calculate the pairwise Euclidean distance matrix for all atoms.
 
@@ -430,9 +446,7 @@ def create_atom_distance_matrix(atom_positions):
     return cdist(atom_positions, atom_positions)
 
 
-def __cal_fi(
-    scat_values: list[float], q: float | np.ndarray[tuple[int], np.dtype[np.float32]]
-) -> float | np.ndarray[tuple[int], np.dtype[np.float32]]:
+def __cal_fi(scat_values: list[float], q: float | FloatVector) -> float | FloatVector:
     """
     [EN] Calculate atomic form factor f(q) using 5-Gaussian approximation.
 
@@ -458,7 +472,7 @@ def __cal_fi(
     return fi
 
 
-def __cal_compton_fi(compton_scattering_factors, q):
+def __cal_compton_fi(compton_scattering_factors: list[float], q: float | FloatVector) -> float | FloatVector:
     """
     [EN] Calculate Compton scattering form factor (Inelastic scattering).
 
@@ -476,17 +490,17 @@ def __cal_compton_fi(compton_scattering_factors, q):
 
 
 def compton_cal_exp(
-    atom_indices,
-    compton_scat_parms,
-    compton_scattering_factors,
-    atomic_number,
-    qmin,
-    qmax,
-    qstep,
-    wavelength,
-    alpha,
-    weights=None,
-):
+    atom_indices: list[int] | IntVector,
+    compton_scat_parms: np.ndarray[tuple[int, int], np.dtype[np.float64]],
+    compton_scattering_factors: FloatVector,
+    atomic_number: list[int] | IntVector,
+    qmin: float,
+    qmax: float,
+    qstep: float,
+    wavelength: float,
+    alpha: float,
+    weights: FloatVector | None = None,
+) -> tuple[FloatVector, list[FloatVector]]:
     """
     [EN] Calculate total experimental Compton scattering intensity.
 
@@ -574,7 +588,7 @@ def compton_cal_exp(
 # ----------------------------------------------------------------------------------
 # Lorch Function Added (Requested 12/28/2025)
 # ----------------------------------------------------------------------------------
-def lorch_function_sinc(Q, Q_max):
+def lorch_function_sinc(Q: FloatVector, Q_max: float) -> FloatVector:
     """
     [EN] Calculate the Lorch modification function M(Q).
 
@@ -591,7 +605,7 @@ def lorch_function_sinc(Q, Q_max):
     return np.sinc(Q / Q_max)
 
 
-def apply_lorch_function(Q, FQ):
+def apply_lorch_function(Q: FloatVector, FQ: FloatVector) -> FloatVector:
     """
     [EN] Apply the Lorch function to F(Q) data.
 
@@ -613,13 +627,13 @@ def apply_lorch_function(Q, FQ):
 
 
 def cal_Iq(
-    atom_indices,
-    scattering_factors,
-    atom_distance_matrix,
-    qmin=0.5,
-    qmax=20,
-    qstep=0.05,
-):
+    atom_indices: list[int] | IntVector,
+    scattering_factors: FloatVector,
+    atom_distance_matrix: np.ndarray[tuple[int, int], np.dtype[np.float64]],
+    qmin: float = 0.5,
+    qmax: float = 20,
+    qstep: float = 0.05,
+) -> tuple[FloatVector, list[FloatVector]]:
     """
     [EN] Calculate the total Scattering Intensity I(q) based on the Debye scattering equation.
 
@@ -694,13 +708,26 @@ def cal_Iq(
 
 
 def cal_Sq(
-    atom_indices,
-    scattering_factors,
-    atom_distance_matrix,
-    qmin=0.5,
-    qmax=20,
-    qstep=0.05,
-    return_Iq=False,
+    atom_indices: list[int] | np.ndarray[tuple[int], np.dtype[np.int32]],
+    scattering_factors: np.ndarray[tuple[int, int], np.dtype[np.float64]],
+    atom_distance_matrix: np.ndarray[tuple[int, int], np.dtype[np.float64]],
+    qmin: float = 0.5,
+    qmax: float = 20,
+    qstep: float = 0.05,
+    return_Iq: bool = False,
+) -> (
+    tuple[
+        np.ndarray[tuple[int], np.dtype[np.float64]],
+        list[np.ndarray[tuple[int], np.dtype[np.float64]]],
+        list[np.ndarray[tuple[int], np.dtype[np.float64]]],
+        list[np.ndarray[tuple[int], np.dtype[np.float64]]],
+        list[np.ndarray[tuple[int], np.dtype[np.float64]]],
+        list[np.ndarray[tuple[int], np.dtype[np.float64]]],
+    ]
+    | tuple[
+        np.ndarray[tuple[int], np.dtype[np.float64]],
+        list[np.ndarray[tuple[int], np.dtype[np.float64]]],
+    ]
 ):
     """
     [EN] Calculate theoretical Structure Factor S(q) using the Debye scattering equation.
@@ -804,7 +831,14 @@ def cal_Sq(
         return q_range, list_Sq
 
 
-def cal_Gr_integral(q, Sq, rmin=0, rmax=100, rstep=0.02, qdamp=0.0):
+def cal_Gr_integral(
+    q: FloatVector,
+    Sq: FloatVector,
+    rmin: float = 0,
+    rmax: float = 100,
+    rstep: float = 0.02,
+    qdamp: float = 0.0,
+) -> tuple[FloatVector, FloatVector]:
     """
     [EN] Calculate the Pair Distribution Function G(r) from Structure Factor S(q) using direct sine integral transform.
 
@@ -866,7 +900,15 @@ def cal_Gr_integral(q, Sq, rmin=0, rmax=100, rstep=0.02, qdamp=0.0):
     return list_r, list_Gr
 
 
-def cal_Gr_fft(q, Sq, rmin=0, rmax=100, rstep=0.02, qdamp=0.0, extrapolate_type="linear"):
+def cal_Gr_fft(
+    q: FloatVector,
+    Sq: FloatVector,
+    rmin: float = 0,
+    rmax: float = 100,
+    rstep: float = 0.02,
+    qdamp: float = 0.0,
+    extrapolate_type: str = "linear",
+) -> tuple[FloatVector, FloatVector]:
     """
     [EN] Calculate the Pair Distribution Function G(r) via Inverse Fast Fourier Transform.
 
@@ -966,18 +1008,32 @@ def cal_Gr_fft(q, Sq, rmin=0, rmax=100, rstep=0.02, qdamp=0.0, extrapolate_type=
 # [Cal_expSq] Core Analysis Function / 핵심 분석 함수
 # ----------------------------------------------------------------------------------
 def cal_expSq(
-    atom_indices,
-    scattering_factors,
-    expqiq,
-    bkgqiq,
-    qmin=0,
-    qmax=25,
-    qstep=0.01,
-    background_scale=1.1,
-    poly_order=11.0,
-    return_Iq=False,
-    weights=None,
-):
+    atom_indices: list[int] | IntVector,
+    scattering_factors: FloatVector,
+    expqiq: FloatVector,
+    bkgqiq: FloatVector,
+    qmin: float = 0,
+    qmax: float = 25,
+    qstep: float = 0.01,
+    background_scale: float = 1.1,
+    poly_order: float = 11.0,
+    return_Iq: bool = False,
+    weights: FloatVector | None = None,
+) -> tuple[
+    FloatVector,
+    list[FloatVector],
+    list[FloatVector],
+    list[FloatVector],
+    list[FloatVector],
+    list[FloatVector],
+    list[FloatVector],
+    list[FloatVector],
+    list[FloatVector],
+    list[FloatVector],
+    list[FloatVector],
+    list[FloatVector],
+    list[FloatVector],
+]:
     """
     [EN] Core function to calculate Structure Factor S(q) and F(q) from experimental I(q).
 
@@ -1197,41 +1253,29 @@ def cal_expSq(
     norm_list_Sq = list_Sq - polynomial_for_sq  # [EN] Remove polynomial background / [KR] 다항식 배경 제거
     list_Fq = q_range * (norm_list_Sq - 1.0)
 
-    if return_Iq:
-        return (
-            q_range,
-            list_Iq,
-            scaled_expIq,
-            list_scaled_bkgIq,
-            list_Sq,
-            norm_list_Sq,
-            list_Fq,
-            mean_sq_fi,
-            sq_mean_fi,
-            polynomial_for_sq,
-            normalized_intensity,
-            normal_scattering_factor,
-            normalization_scale,
-        )
-    else:
-        return (
-            q_range,
-            list_Iq,
-            scaled_expIq,
-            list_scaled_bkgIq,
-            list_Sq,
-            norm_list_Sq,
-            list_Fq,
-            mean_sq_fi,
-            sq_mean_fi,
-            polynomial_for_sq,
-            normalized_intensity,
-            normal_scattering_factor,
-            normalization_scale,
-        )
+    return (
+        q_range,
+        list_Iq,
+        scaled_expIq,
+        list_scaled_bkgIq,
+        list_Sq,
+        norm_list_Sq,
+        list_Fq,
+        mean_sq_fi,
+        sq_mean_fi,
+        polynomial_for_sq,
+        normalized_intensity,
+        normal_scattering_factor,
+        normalization_scale,
+    )
 
 
-def cal_fq(qmin, qmax, Sq, qstep=0.01):
+def cal_fq(
+    qmin: float,
+    qmax: float,
+    Sq: FloatVector,
+    qstep: float = 0.01,
+) -> tuple[FloatVector, FloatVector]:
     """
     [EN] Calculate the Reduced Structure Function F(q) from Structure Factor S(q).
 
@@ -1281,16 +1325,21 @@ def cal_fq(qmin, qmax, Sq, qstep=0.01):
 
 
 def cal_expGr_fft(
-    q,
-    Sq_or_Fq,
-    rmin=0,
-    rmax=100,
-    rstep=0.01,
-    is_Fq=False,
-    pad_mode="zero",
-    low_q_mode="anchor",
-    extrapolate_type="linear",
-    return_padding=False,
+    q: FloatVector,
+    Sq_or_Fq: FloatVector,
+    rmin: float = 0,
+    rmax: float = 100,
+    rstep: float = 0.01,
+    is_Fq: bool = False,
+    pad_mode: str = "zero",
+    low_q_mode: str = "anchor",
+    extrapolate_type: str = "linear",
+    return_padding: bool = False,
+) -> (
+    tuple[FloatVector, FloatVector]
+    | tuple[FloatVector, FloatVector, dict]
+    | tuple[None, None]
+    | tuple[None, None, None]
 ):
     """
     [EN] Calculate G(r) from S(q) or F(q) using IFFT with low-q extrapolation.
@@ -1492,15 +1541,15 @@ def cal_expGr_fft(
 
 
 def cal_expGr_fft_from_Fq(
-    q,
-    Fq,
-    rmin=0,
-    rmax=100,
-    rstep=0.01,
-    pad_mode="zero",
-    low_q_mode="anchor",
-    extrapolate_type="linear",
-):
+    q: FloatVector,
+    Fq: FloatVector,
+    rmin: float = 0,
+    rmax: float = 100,
+    rstep: float = 0.01,
+    pad_mode: str = "zero",
+    low_q_mode: str = "anchor",
+    extrapolate_type: str = "linear",
+) -> tuple[FloatVector, FloatVector]:
     """
     [EN] Calculate G(r) directly from F(q) using IFFT.
 
@@ -1568,57 +1617,12 @@ def cal_expGr_fft_from_Fq(
     return r_list, gr
 
 
-def detect_header_lines(path, min_cols=2):
-    """
-    [EN] Automatically detect the number of header lines to skip.
-
-    [KR] 데이터 파일에서 건너뛸 헤더(Header) 라인 수를 자동으로 감지합니다.
-    """
-    skip = 0
-    with open(path, encoding="utf-8", errors="replace") as f:
-        for line in f:
-            stripped = line.strip()
-            if not stripped:  # [EN] Skip empty lines / [KR] 빈 줄 무시
-                skip += 1
-                continue
-            parts = stripped.split()
-            if stripped.startswith("#"):  # [EN] Skip comments / [KR] 주석(#) 무시
-                skip += 1
-                continue
-            if len(parts) < min_cols:  # [EN] Skip if not enough columns / [KR] 열 개수 부족 시 무시
-                skip += 1
-                continue
-            try:
-                for p in parts[:min_cols]:
-                    float(p)  # [EN] Check if float / [KR] 실수형 변환 가능 여부 확인
-                break
-            except ValueError:
-                skip += 1
-                continue
-    return skip
-
-
-def load_qiq_file(path, min_cols=2, usecols=(0, 1)):
-    """
-    [EN] Load Q vs I(q) data from file using automatic header detection.
-
-    [KR] 헤더 자동 감지 기능을 사용하여 파일에서 Q vs I(q) 데이터를 로드합니다.
-    """
-    skip = detect_header_lines(path, min_cols=min_cols)
-    with open(path, "rb") as f:
-        raw = f.read()
-    text = raw.decode("latin1")  # [EN] Decode using latin1 to avoid errors / [KR] 인코딩 오류 방지
-    buf = io.StringIO(text)
-    data = np.loadtxt(buf, skiprows=skip, usecols=usecols)
-    return data
-
-
 # =============================================================================
 # [Added Section] Whittaker-Henderson Smoothing Functions (12/2025 Added)
 # =============================================================================
 
 
-def smooth_whittaker(y, lambda_=1600.0, order=2):
+def smooth_whittaker(y: FloatVector, lambda_: float = 1600.0, order: int = 2):
     """
     [EN] Whittaker-Henderson smoothing algorithm.
 
@@ -1656,7 +1660,7 @@ def smooth_whittaker(y, lambda_=1600.0, order=2):
         raise RuntimeError(f"Unexpected error during smoothing: {e}. Check your lambda and order values.") from e
 
 
-def make_dT_d(n, d):
+def make_dT_d(n: int, d: int):
     """
     [EN] Constructs the penalty matrix (D.T * D) for Whittaker smoothing.
 
@@ -1673,28 +1677,28 @@ def make_dT_d(n, d):
     return D.T @ D
 
 
-def bandwidth_to_lambda(bandwidth, order):
+def bandwidth_to_lambda(bandwidth: float, order: int) -> float:
     """Convert a Savitzky-Golay-like bandwidth to Whittaker lambda."""
     return (2 * factorial(order)) ** 2 / (bandwidth ** (2 * order))
 
 
-def smooth_like_savitzky_golay(y, bandwidth, order):
+def smooth_like_savitzky_golay(y: FloatVector, bandwidth: float, order: int) -> FloatVector:
     """Whittaker smoothing configured to mimic Savitzky-Golay behavior."""
     lambda_ = bandwidth_to_lambda(bandwidth, order)
     return smooth_whittaker(y, lambda_, order)
 
 
-def noise_gain_to_lambda(gain, order):
+def noise_gain_to_lambda(gain: float, order: int) -> float:
     """Convert noise gain parameter to Whittaker lambda."""
     return (2 * factorial(order)) ** 2 / gain
 
 
-def smooth_with_noise_gain(y, gain=1e-4, order=2):
+def smooth_with_noise_gain(y: FloatVector, gain: float = 1e-4, order: int = 2) -> FloatVector:
     """Whittaker smoothing using a noise gain parameter."""
     lambda_ = noise_gain_to_lambda(gain, order)
     return smooth_whittaker(y, lambda_, order)
 
 
-def batch_smooth_whittaker(y_2d, lambda_=1600.0, order=2):
+def batch_smooth_whittaker(y_2d: np.ndarray, lambda_: float = 1600.0, order: int = 2) -> np.ndarray:
     """Apply Whittaker-Henderson smoothing to each row of a 2D array."""
     return np.array([smooth_whittaker(row, lambda_, order) for row in y_2d])
