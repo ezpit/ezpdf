@@ -287,7 +287,9 @@ def parse_composition(composition: str | dict[str, float]):
     return composition_dict
 
 
-def composition_weights(composition):
+def composition_weights(
+    composition: str | dict[str, float],
+) -> tuple[list[str], np.ndarray[tuple[int], np.dtype[np.float64]]]:
     """
     [EN] Turn a composition dict into unique element names and their amounts (weights).
 
@@ -325,7 +327,7 @@ def composition_weights(composition):
     return names, weights
 
 
-def convert_atom_names(composition):
+def convert_atom_names(composition: str | dict[str, float]) -> list[str]:
     """
     [EN] Convert a whole-number composition (dict OR string) to a full list of.
 
@@ -351,7 +353,9 @@ def convert_atom_names(composition):
     return [el for el, count in comp.items() for _ in range(int(count))]
 
 
-def group_atoms(atom_names: list[str]) -> tuple[list[str], np.ndarray[tuple[int], np.dtype[np.int64]], np.ndarray[tuple[int], np.dtype[np.int64]]]:
+def group_atoms(
+    atom_names: list[str],
+) -> tuple[list[str], np.ndarray[tuple[int], np.dtype[np.int64]], np.ndarray[tuple[int], np.dtype[np.int64]]]:
     """
     [EN] Group identical atoms and count their occurrences.
 
@@ -425,7 +429,10 @@ def create_atom_distance_matrix(atom_positions):
     # [KR] scipy.spatial.distance.cdist를 사용하여 모든 점 쌍 사이의 거리를 계산합니다.
     return cdist(atom_positions, atom_positions)
 
-def __cal_fi(scat_values: list[float], q: float | np.ndarray[tuple[int], np.dtype[np.float32]]) -> float | np.ndarray[tuple[int], np.dtype[np.float32]]:
+
+def __cal_fi(
+    scat_values: list[float], q: float | np.ndarray[tuple[int], np.dtype[np.float32]]
+) -> float | np.ndarray[tuple[int], np.dtype[np.float32]]:
     """
     [EN] Calculate atomic form factor f(q) using 5-Gaussian approximation.
 

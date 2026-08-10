@@ -21,8 +21,8 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QStyle,
     QTabWidget,
-    QVBoxLayout,
     QTreeWidgetItem,
+    QVBoxLayout,
     QWidget,
 )
 

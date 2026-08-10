@@ -9,8 +9,9 @@ from .elem_tables import AFF_ELEMENTS
 
 def parse_composition(composition: str | dict[str, float]) -> dict[str, float]:
     """
-    [EN] Parse a composition string from the Control Panel and turn it into a.
-         dictionary (EZPDF_GUI_3 helpers.py behaviour).
+    [EN] Parse a composition string from the Control Panel into a dictionary.
+
+         (EZPDF_GUI_3 helpers.py behaviour.)
          Both spaced and compact styles are accepted, and a quantity of 1 may be
          omitted. All of the following give {'Co': 38, 'O': 119, 'P': 1}:
              'Co 38 O 119 P 1'  /  'Co 38 O 119 P'  /  'Co38O119P1'  /  'Co38O119P'
@@ -134,7 +135,9 @@ def parse_composition(composition: str | dict[str, float]) -> dict[str, float]:
     return composition_dict
 
 
-def composition_weights(composition: str | dict[str, float]) -> tuple[list[str], np.ndarray[tuple[int], np.dtype[np.float64]]]:
+def composition_weights(
+    composition: str | dict[str, float],
+) -> tuple[list[str], np.ndarray[tuple[int], np.dtype[np.float64]]]:
     """
     [EN] Turn a composition dict into unique element names and their amounts.
 
@@ -182,7 +185,9 @@ def composition_weights(composition: str | dict[str, float]) -> tuple[list[str],
     return names, weights
 
 
-def load_atom_name_positions(file_path: str | Path, valid_symbols: list[str] = AFF_ELEMENTS) -> tuple[list[str], np.ndarray[tuple[int], np.dtype[np.float64]]]:
+def load_atom_name_positions(
+    file_path: str | Path, valid_symbols: list[str] = AFF_ELEMENTS
+) -> tuple[list[str], np.ndarray[tuple[int], np.dtype[np.float64]]]:
     """
     [EN] Load atom names and (x, y, z) positions from an .xyz file.
 
@@ -344,7 +349,9 @@ def convert_atom_names(composition: str | dict[str, float]) -> list[str]:
     return [el for el, count in comp.items() for _ in range(int(count))]
 
 
-def group_atoms(atom_names: list[str]) -> tuple[list[str], np.ndarray[tuple[int], np.dtype[np.int64]], np.ndarray[tuple[int], np.dtype[np.int64]]]:
+def group_atoms(
+    atom_names: list[str],
+) -> tuple[list[str], np.ndarray[tuple[int], np.dtype[np.int64]], np.ndarray[tuple[int], np.dtype[np.int64]]]:
     """
     Get unique atom names, their counts, and the index of atom in the unique.
 
