@@ -505,7 +505,7 @@ class PDFApp(QMainWindow):
     def show_about_dialog(self):
         # About Dialog Text - 프로그램 정보 텍스트
         about_text = """
-        <b>EZPDF (Easy(EZ) Pair Distribution Function (PDF) Version 1.0.2, August 4, 2026)</b>
+        <b>EZPDF (Easy(EZ) Pair Distribution Function (PDF) Version 1.0.4, Nov. 08 2026)</b>
         <p>: An easy-to-use software developed by the NSLS-II team for processing X-ray
         diffraction/scattering data and generating pair distribution function (PDF) spectra.</p>
 

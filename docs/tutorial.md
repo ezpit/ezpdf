@@ -424,6 +424,59 @@ the principal peak positions and overall PDF profiles are similar; this does not
 ![img_41.png](img_41.png)
 
 
+Software comparison
+===================
+EZPDF is compared with xPDFsuite (the GUI for PDFgetX3) and PDFgetX2 using amorphous cobalt oxide, liquid water and crystalline CeO₂. 
+Figures are reproduced from the manuscript; the original numbering is retained.
+
+Amorphous cobalt oxide
+====================== 
+
+![Comparison_cobaltoxide.png](Comparison_cobaltoxide.png)
+
+S(q), F(q) and G(r) for amorphous cobalt oxide calculated using EZPDF, xPDFsuite and PDFgetX2. 
+(A–C) Profiles offset vertically for clarity. (D–F) Overlaid profiles, with PDFgetX2 rescaled as indicated in the legends. 
+Processing limits: qmin = 0.6 Å⁻¹, qmax = 23 Å⁻¹, rmin = 0 Å and rmax = 30 Å. 
+
+The polynomial order in EZPDF was 7.175 (corresponding R-poly ≈ 0.98 Å), and R-poly in xPDFsuite was 0.98 Å. No Lorch modification was applied.
+EZPDF and xPDFsuite give closely matching S(q), F(q) and G(r) profiles, including the main PDF peaks near 1.9 and 2.8 Å. 
+PDFgetX2 reproduces most feature positions but gives larger unscaled amplitudes. 
+In panels D–F, PDFgetX2 is displayed as 0.30 × S(q) + 0.68, 0.30 × F(q) and 0.41 × G(r), respectively. 
+After rescaling, the G(r) peaks largely overlap; differences remain near q ≈ 4.5 Å⁻¹ and in some higher-q oscillations.
+
+Liquid water
+=============
+![Comparison_water.png](Comparison_water.png)
+
+S(q), F(q) and G(r) for water calculated using EZPDF, xPDFsuite and PDFgetX2. 
+(A–C) Profiles offset vertically for clarity. (D–F) The same profiles overlaid. 
+Processing limits: qmin = 0.8 Å⁻¹, qmax = 20 Å⁻¹, rmin = 0 Å and rmax = 20 Å. The polynomial order in EZPDF was 7.6 (corresponding R-poly ≈ 1.194 Å), 
+and R-poly in xPDFsuite was 1.25 Å. PDFgetX2 used Lorch damping and spline extension of F(q) from qmin to q = 0.
+PDFgetX2 gives larger S(q) and F(q) oscillations, particularly below q ≈ 10 Å⁻¹, and a lower S(q) baseline below q ≈ 1.5 Å⁻¹. 
+The main G(r) peak near 2.8 Å occurs at a similar position in all three results but is substantially higher for PDFgetX2. 
+Stronger PDFgetX2 oscillations also occur below 2 Å and over approximately 4–10 Å. 
+The PDFgetX2 settings include Lorch damping and low-q spline extension; these processing differences must be considered when comparing the profiles.
+
+Crystalline CeO₂
+================
+![Comparison_CeO2.png](Comparison_CeO2.png)
+ 
+Figure 7. S(q), F(q) and G(r) for NIST CeO2 (SRM 674b) calculated using EZPDF, xPDFsuite and PDFgetX2. (A, B) Full reciprocal-space range. 
+(D, E) Expanded views below q = 8 Å⁻¹. (C, F) G(r) over r = 0–40 and 40–80 Å, respectively. 
+Processing limits: qmin = 0.7 Å⁻¹, qmax = 24 Å⁻¹, rmin = 0 Å and rmax = 100 Å. 
+The polynomial order in EZPDF was 7.232 (corresponding R-poly ≈ 0.947 Å), and R-poly in xPDFsuite was 0.97 Å. 
+PDFgetX2 used spline extension of F(q) from qmin to q = 0, without Lorch damping.
+EZPDF and xPDFsuite closely overlap in S(q), F(q) and G(r). 
+PDFgetX2 gives similar peak positions but different amplitudes and baselines, particularly below q = 8 Å⁻¹. 
+The G(r) peaks remain closely aligned over r = 0–40 Å, although their amplitudes differ. 
+All three results retain long-range oscillations over r = 40–80 Å, consistent with the crystalline character of the sample; 
+PDFgetX2 shows generally larger amplitudes in parts of this interval.
+Interpretation and limitations
+Agreement in peak positions and profile shape does not establish absolute-intensity accuracy. 
+The precise causes of the observed differences have not been determined: direct comparison of the implementations and processing settings is required. 
+These examples are not an exhaustive validation, and Gudrun results are not included.
+
+
 GUI of EZPDF 
 =============
 The picture shows GUI of EZPDF to process experimental I(q) data to obtain S(q), F(q), G(r). the loaded file, the necessary parameters, 
