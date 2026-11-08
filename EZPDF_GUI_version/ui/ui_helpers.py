@@ -51,6 +51,16 @@ def add_slider_field(label, min_val, max_val, decimals, default_val, layout, fac
     min_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
     max_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
 
+    def sync_range_labels(minimum, maximum):
+        # Project loading may expand a slider externally. Keep the +/- buttons'
+        # stored range and both labels synchronized with the actual Qt range.
+        # 프로젝트 복원 시 확장된 범위를 표시와 +/- 버튼에도 반영합니다.
+        current_max[0] = from_slider_val(maximum)
+        min_label.setText(f"{from_slider_val(minimum):.{decimals}f}")
+        max_label.setText(f"{current_max[0]:.{decimals}f}")
+
+    slider.rangeChanged.connect(sync_range_labels)
+
     def slider_to_input(val):
         line_edit.setText(f"{from_slider_val(val):.{decimals}f}")
 

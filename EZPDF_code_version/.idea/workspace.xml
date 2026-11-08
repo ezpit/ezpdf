@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="4890037d-cfa8-4311-8d73-207b3cfbb6c6" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/model/math_functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/model/math_functions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/control_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/control_panel.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/file_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/file_panel.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/main_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/ui_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/ui_helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/EZPDF_code_version.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/aff_elementonly.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/aff_parmonly.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/compton_atomicnumber.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/compton_element_only.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/data/compton_parameter_only.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/demo_Comptonscattering_0731_2026.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/demo_experimental_data_testingcode_0731_2026.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/demo_xyz_model_0731_2026.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/losa/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/losa/loadersaver.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/prep/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/prep/preprocessing.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proc/__init__.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/proc/processing.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/Baseline_extract_Gr.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/EZPDF_GUI.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/EZPDF_GUI.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/EZPDF_plot.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/EZPDF_plot.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/EZPDF_plot_save_plot option.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/EZPDF_plot_save_plot option.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/EZPIT_tutorial_revised.docx" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/Experimental S(q) calculation.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/Pad_F(q)_Gr result.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/Polynomial_low_r_Gr.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/S(q) calculation of experimental I(q).png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/S(q)_calculation_polynomials-2.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/S(q)_calculation_polynomials.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/S(q)_calculation_polynomials.svg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/WH_smooth_GUI-5.jpg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/WH_smooth_GUI-5.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/bitmap.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/img_15.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/img_16.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/img_16.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/img_26.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/img_26.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/img_38-2.png" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/img_39.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/img_39.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/img_40.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/img_40.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/img_41.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/img_41.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/tutorial.md" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/tutorial.md" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/.." />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;ezpit&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/ezpit/ezpit&quot;,
+    &quot;accountId&quot;: &quot;e3939d0e-35b8-4f2e-9219-3d28d36dbdf0&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7,
+  &quot;fromUser&quot;: false
+}</component>
+  <component name="ProjectId" id="3LMA9h8utW1gk5ebyJaNR2dnTW6" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.demo_Comptonscattering_0731_2026.executor": "Run",
+    "Python.demo_expGr_integral.executor": "Run",
+    "Python.demo_experimental_data_testingcode_0731_2026.executor": "Run",
+    "Python.demo_fft_padding.executor": "Run",
+    "Python.demo_pavol_fft_padding.executor": "Run",
+    "Python.demo_xyz_model_0731_2026.executor": "Run",
+    "Python.processing.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "C:/Users/gkwon/Pycharmprojects/ezpit/EZPDF_code_version",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  }
+}]]></component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-python-sdk-d4a74c56190c-6d6dccd035ac-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-253.33813.50" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="4890037d-cfa8-4311-8d73-207b3cfbb6c6" name="Changes" comment="" />
+      <created>1793253414178</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1793253414178</updated>
+    </task>
+    <servers />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <breakpoints>
+        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
+          <url>file://$PROJECT_DIR$/proc/processing.py</url>
+          <line>1233</line>
+          <option name="timeStamp" value="1" />
+        </line-breakpoint>
+      </breakpoints>
+    </breakpoint-manager>
+  </component>
+</project>

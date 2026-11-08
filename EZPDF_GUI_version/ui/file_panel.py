@@ -386,11 +386,57 @@ class FilePanel(QWidget):
                     pass
             self.file_list.takeTopLevelItem(index)
 
+        self._clear_deleted_file_references({path for _, _, path in deleted_batch})
+
         if deleted_batch:
             self.undo_stack.append(deleted_batch)
             update_file_list_numbering(self.file_list)
 
         self._apply_index_width()
+
+    def _clear_deleted_file_references(self, deleted_paths):
+        """Remove deleted samples from the active state and linked plots."""
+        mw = self.main_window
+        if mw is None:
+            return
+        cp = self.control_panel
+
+        def item_path(item):
+            if isinstance(item, str):
+                return item
+            try:
+                return item.data(0, Qt.ItemDataRole.UserRole)
+            except (AttributeError, RuntimeError):
+                return None
+
+        current = getattr(mw, "current_path", None)
+        if current is not None:
+            items = current if isinstance(current, (list, tuple)) else [current]
+            remaining = [item for item in items
+                         if item_path(item) and item_path(item) not in deleted_paths]
+            mw.current_path = remaining or None
+
+        windows = list(getattr(mw, "plot_windows", []))
+        primary = getattr(mw, "plot_window", None)
+        if primary is not None and primary not in windows:
+            windows.append(primary)
+        retained = []
+        for window in windows:
+            items = getattr(window, "associated_items", None) or []
+            if any(item_path(item) in deleted_paths for item in items):
+                # A multi-file plot must not keep displaying a deleted sample.
+                window.associated_items = []
+                window.close()
+                if window is primary:
+                    mw.plot_window = None
+            else:
+                retained.append(window)
+        mw.plot_windows = retained
+        if cp is not None and hasattr(cp, "_bkg_warned_pairs"):
+            cp._bkg_warned_pairs = {
+                pair for pair in cp._bkg_warned_pairs
+                if pair[0] not in deleted_paths
+            }
 
     def undo_delete(self):
         if not self.undo_stack:

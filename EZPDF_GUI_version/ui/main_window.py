@@ -621,6 +621,19 @@ class PDFApp(QMainWindow):
             return
 
         # Reset current UI state for new project - 새로운 프로젝트를 위해 현재 UI 상태 초기화
+        self.current_path = None
+        self.undo_stack.clear()
+        if hasattr(self.control_panel, "_bkg_warned_pairs"):
+            self.control_panel._bkg_warned_pairs.clear()
+        # Close every old plot before destroying its file-list items.
+        old_windows = list(self.plot_windows)
+        if self.plot_window is not None and self.plot_window not in old_windows:
+            old_windows.append(self.plot_window)
+        for window in old_windows:
+            window.associated_items = []
+            window.close()
+        self.plot_window = None
+        self.plot_windows.clear()
         self.file_panel.file_list.clear()
         # Reset the file panel's sort state so the project's saved order is
         # shown exactly, not re-sorted by a previously active header sort or a

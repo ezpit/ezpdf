@@ -317,6 +317,19 @@ class ControlPanel(QWidget):
                 pass
         return None
 
+    def _sample_is_in_file_list(self, sample_path):
+        """Reject references to samples removed from the current file list."""
+        if not sample_path:
+            return False
+        fp = getattr(self.main_window, "file_panel", None)
+        tree = getattr(fp, "file_list", None)
+        if tree is None:
+            return False
+        for index in range(tree.topLevelItemCount()):
+            if self._path_from_item(tree.topLevelItem(index)) == sample_path:
+                return True
+        return False
+
     def _q_axis_mismatch(self, sample_path, bkg_path):
         """Return a short description of the q-axis mismatch, or None if OK."""
         try:
@@ -365,7 +378,8 @@ class ControlPanel(QWidget):
 
         # Without a readable sample path to compare against we cannot check;
         # allow it.
-        if not sample_path or not os.path.isfile(sample_path):
+        if (not self._sample_is_in_file_list(sample_path)
+                or not os.path.isfile(sample_path)):
             return True
 
         mismatch_msg = self._q_axis_mismatch(sample_path, bkg_path)
@@ -1144,7 +1158,8 @@ class ControlPanel(QWidget):
                 items, (list, tuple)) else items)
         except Exception:
             return
-        if not sample_path or not os.path.isfile(sample_path):
+        if (not self._sample_is_in_file_list(sample_path)
+                or not os.path.isfile(sample_path)):
             return
 
         pair = (sample_path, self.background_path)
@@ -1212,7 +1227,16 @@ class ControlPanel(QWidget):
 
         current_bg = self.bg_slider.value() / 100000.0
         bg = float(params["bg"]) if "bg" in params else current_bg
-        self.bg_slider.setValue(int(round(bg * 100000)))
+        # Restore the range BEFORE setting the value: Qt otherwise clips
+        # saved background scales above the initial maximum (1.0).
+        # 저장된 배율이 초기 상한 1.0으로 잘리지 않도록 범위를 먼저 복원합니다.
+        bg_value = int(round(bg * 100000))
+        if bg_value > self.bg_slider.maximum():
+            self.bg_slider.setMaximum(bg_value)
+        if bg_value < self.bg_slider.minimum():
+            self.bg_slider.setMinimum(bg_value)
+        self.bg_slider.setValue(bg_value)
+        self.bg_input.setText(f"{bg_value / 100000.0:.5f}")
 
 
         current_qmax = self.qmax_slider.value() / 1000.0

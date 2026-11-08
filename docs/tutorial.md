@@ -1,7 +1,7 @@
-# This is for tutorial
+# EZPDF tutorial: GUI and Code versions
 
-Necessary Prerequisites Before Executing Python Code!!!
-=======================================================
+Prerequisites for running the Code version
+===========================================
 
 Installing Python and tools for writing codes
 https://algotom.readthedocs.io/en/latest/toc/section1/section1_1.html
@@ -11,45 +11,50 @@ https://algotom.readthedocs.io/en/latest/toc/section4/section4_1.html
 
 ***** To obtain I(q), S(q), F(q), G(r) from input xyz coordinates, or to derive S(q), F(q), G(r) from experimental I(q) 
 or Compton scattering patterns, please refer to the files located in the """examples""" directory. ******
-Sooner or later, we will incorporate various fitting functions to assess input models using experimental data.
+This tutorial covers EZPDF data processing and scattering calculations. 
+Structural fitting with EZPIT is a separate workflow.
 
 
 Input file
 ==========
 
-EZPIT is a software tool that can process ".xyz coordinate file" data from 
+EZPDF is a software tool that can process ".xyz coordinate file" data from 
 various 3D modeling programs. These programs include Mercury, Discovery Studio, 
-VESTA, Avogadro, CrystalMaker and more. To use EZPIT with atom and ion, the user must 
+VESTA, Avogadro, CrystalMaker and more. To use EZPDF with atoms and ions, the user must 
 match their name with the one in the atomic form factor file (aff_elementonly.txt). 
-This file can be found in the "data" folder of EZPIT. Here are some examples of xyz 
+This file can be found in the "data" folder of the Code version. Here are some examples of xyz 
 coordinate file format.
+
 
 ![img_1.png](img_1.png)
 
-An experimental G(r) file is a text file that contains the radial distribution 
-function of a material. The file has two columns: the first one is the distance r 
+An experimental G(r) file contains the reduced pair distribution function as two numeric columns: r and G(r).
+ The file has two columns: the first one is the distance r 
 in angstroms, and the second one is the value of G(r) at that distance. 
-The file does not have any header or footer lines, and the columns are separated by 
+The numeric data may be preceded by metadata or comment lines, and the columns are separated by 
 spaces or tabs. An example of an experimental G(r) file is:
+
 
 ![img_2.png](img_2.png)
 
-When you use xPDFsuite or pdggetX2 to produce G(r), you may notice some extra lines 
+When you use xPDFsuite or PDFgetX2 to produce G(r), you may notice some extra lines 
 at the beginning of the file. These are header or footer lines that contain some metadata. 
-If you want to keep them, you can specify the number of lines to skip in the row parameter 
-in “def load_atom_names(file_path)” function.
-EZPIT also requires two files including “aff_elementonly.txt” and “aff_parmonly.txt”. 
-“aff_elementonly.txt” include all atoms and ions fore atomic form factors and “aff_parmonly.txt” 
+For a numeric two-column file, use a reader such as numpy.loadtxt(file_path, comments="#", skiprows=n_header), 
+with n_header set to the number of lines before the numeric data. Verify the loaded columns. 
+load_atom_names() reads a species list; it is not the G(r) data reader.
+
+The Code version also uses two files including “aff_elementonly.txt” and “aff_parmonly.txt”. 
+“aff_elementonly.txt” include all atoms and ions for atomic form factors and “aff_parmonly.txt” 
 has parameters for atomic form factors. The table of atomic form factor was obtained from 
-“New Analytical Scattering Factor Functions for Free Atoms and Ions for Free Atoms and Ions by D. Waasmaier & A. Kirfel, 
-Acta Cryst. (1995). A51, 416-413 and PDFgetX2 library”. 
+“New Analytical Scattering Factor Functions for Free Atoms and Ions by 
+D. Waasmaier & A. Kirfel, Acta Cryst. (1995). A51, 416–431 and PDFgetX2 library”. 
 Also International Tables for Crystallography (2006). Vol. C, ch. 4.3, pp. 259-429” provides scattering form factor. 
 The equation of atomic form factor is 
 
 ![img_3.png](img_3.png)
 
-where f(k) is the atomic form factor of the i-th atom or ion, q is the momentum transfer, 
-ai, bi and C are the parameters from the table, and the summation is over four terms.
+where f(s) is the atomic form factor, s = sin(θ)/λ = q/(4π), and q is the momentum transfer, 
+ai, bi and C are the parameters from the table, and the summation is over five Gaussian terms, plus the constant C.
 
 When the code reads each atom or ions in ".xyz coordinate file", the code finds the row of
 each atom or ions in “aff_elementonly.txt” and picks the corresponding parameters 
@@ -62,16 +67,16 @@ Setup of input file path
 ========================
 
 As an example, please specify the file path of experimental G(r), .xyz coordinate file, 
-aff_elementonly.txt, and aff_paramonly.txt.
+aff_elementonly.txt, and aff_parmonly.txt.
 
 ![img_5.png](img_5.png)
 
 User input information
 ======================
 
-The following parameters are required for getting scattering intensity I(q), 
-structure function S(q), reduced structure function F(q), pair distribution 
-function G(r): qmin, qmax, qstep, rmin, rmax, rstep, and qdamp.
+Set qmin, qmax and qstep for xyz-model calculations, and rmin, rmax and rstep for the PDF output. 
+The optional qdamp parameter belongs to the Code version’s theoretical G(r) functions; 
+qdamp = 0 disables its real-space damping envelope. It is not a CAL-tab input in the GUI.
 
 I(q) calculation
 ================
@@ -82,16 +87,24 @@ the atomic positions in the input .xyz coordinate file.
 ![img_6.png](img_6.png)
 
 The total coherent scattering intensity, I(q), is theoretically defined as the sum of two fundamental components: 
-self-scattering (i = j) and distinct-pair scattering (i ≠ j), a relationship clearly illustrated by the provided image using a three-element system (A, B, C).
+self-scattering (i = j) and distinct-pair scattering (i ≠ j), a relationship clearly illustrated by the provided image 
+using a three-element system (A, B, C).For three atoms A, B and C, 
+the general Debye expression is:I(q) = (f_A)^2  + (f_B)^2  + (f_C)^2  + 2∑_(i<j) ((f_i x f_j) x sinc(qr_ij)). 
+Here the distinct pairs are AB, AC and BC. At q = 0, sinc(0) = 1 and the entire expression becomes I(0) = (f_A (0) + f_B (0) + f_C (0))^2.
 
 ![I(q) calculation_Basic equation_example.png](I%28q%29%20calculation_Basic%20equation_example.png)
 
-If sample is water (H2O,  H1, H2, O1), I(q) = (fH1H1 + fH2H2 + fO1O1)2 = (2fH2 + fO2)
+For water, the self-scattering contribution is 2f_H(q)² + f_O(q)². Distinct H–H and H–O pair terms must also be included.
+(water (H2O,  H1, H2, O1), I(q) = (fH1H1 + fH2H2 + fO1O1)2 = (2fH2 + fO2))
+
 When q = zero (0), sin(qrij)/(qrij) = 1, So, the Debye formula will be:
 
 ![img_8.png](img_8.png)
 
-If sample is water (H2O,  H1, H2, O1), I(q) = (fH1 + fH2 + fO1)2 = (2fH + fO)2 
+At q = 0, the total intensity for one water molecule is I(0) = [2f_H(0) + f_O(0)]².
+(water (H2O,  H1, H2, O1), I(q) = (fH1 + fH2 + fO1)2 = (2fH + fO)2)
+
+
 One possible way to explain this is:
 The .xyz coordinate file contains the positions of the atoms in a molecule. 
 For example, if the .xyz coordinate file has 
@@ -101,9 +114,12 @@ For example, if the .xyz coordinate file has
 It means that there are three atoms: one iridium and two oxygen. 
 To calculate the scattering intensity I(q) as a function of the momentum transfer q, 
 we need to consider the distances between all pairs of atoms. 
-At q = zero (0), 2nd term is only considered for I(q) When q > 0, 
+At q = 0, all atom pairs contribute and I(0) = [Σ_i f_i(0)]². 
+For q > 0, the pair matrix includes both diagonal self-scattering terms (i = j) and off-diagonal distinct-pair terms (i ≠ j). 
+The diagonal sinc terms are always evaluated at their limiting value of one.
+(At q = zero (0), 2nd term is only considered for I(q) When q > 0, 
 all pairs are considered as a matrix like below. Diagonal components (when I = j) 
-will be  2nd term which is same as when q=zero.
+will be  2nd term which is same as when q=zero.)
 
 ![img_10.png](img_10.png)
 
@@ -122,57 +138,107 @@ To determine the structure function S(q), we applied the following formula.
 
 ![img_12.png](img_12.png)
 
-The function “calculate_Sq” takes several arguments, such as atom_indices, 
+For model-derived coherent intensity, use the following normalization. 
+Here N is the number of atoms, ⟨f(q)⟩ is the mean form factor, and ⟨f(q)²⟩ is the mean squared form factor. 
+The form-factor variable is s = sin(θ)/λ = q/(4π). 
+For Co20P10O4, N = 34; average each form factor using the weights 20/34, 10/34 and 4/34. 
+
+The function “cal_Sq” takes several arguments, such as atom_indices, 
 scattering_factors, atom_distance_matrix, qmin, qmax, qstep, and return_Iq. 
 It computes the structure function S(q) for a given set of atoms and 
 scattering factors. And the mean of square atomic form factor <f2> 
 and the square of mean atomic form factor <f>2 can also be calculated.
 
-G(r) calculation by integral function and inverse fast Fourier transform (IFFT)
-===============================================================================
+Lorch function
+==============
+Lorch modification function M(q) = sin(pi*q/qmax) / (pi*q/qmax).
+M(0) = 1 and M(qmax) = 0. Used to damp the finite-qmax truncation before
+the F(q) -> G(r) sine transform, reducing termination ripple.
 
-The integral calculation method is more time-consuming than the IFFT method 
-because it requires repeated calculations from rmin to rmax . For each r value, 
-the function G(r) has to be integrated from qmin to qmax.
+
+Calculation of G(r) by direct integration and rFFT
+===================================================
+
+Starting from the structure function S(q), calculate F(q) = q[S(q) − 1]. 
+The finite-range sine transform below defines G(r). 
+Direct numerical integration evaluates this integral at each requested r value; 
+the FFT route evaluates the same sine transform through an odd-extended real array.
 
 ![img_13.png](img_13.png)
 
-To avoid repletion of calculation, a list was used and please see the function of 
-“calculate_Gr_integral”. The following figure illustrates the quality of 
-PDF spectrum with different rsetp.
+Direct-integration functions
+============================
+
+In the Code version, cal_Gr_integral() calculates G(r) from xyz-model-derived S(q). 
+The experimental routine cal_expGr_integral() accepts S(q) or F(q); set is_Fq=True when passing F(q). 
+Direct integration uses the available q interval and does not require zero padding or low-q extrapolation.
+
+Choosing the output r spacing
+=============================
+
+The example below compares rstep = 0.1 Å and 0.01 Å. 
+A smaller rstep samples the same PDF more densely and improves its visual representation. 
+It does not add structural information or improve the real-space resolution set by the measured q range.
+
 
 ![img_14.png](img_14.png)
 
-The IFFT method is more efficient than the integral method, but it needs 
-the relation between q (reciprocal space) and r (real space) to obtain 
-a correct real-space value for G(r). After applying IFFT, the imaginary part of G(r)
-was extracted. In addition, the real-space axis had to be adjusted with
+The updated FFT route uses a forward real-input FFT, numpy.fft.rfft, rather than the earlier IFFT procedure. 
+The GUI uses this route by default. The Code version also provides direct integration for comparison. 
+FFT calculations are generally faster for dense output grids, although timing depends on the input size and numerical settings.
 
-total_point = int(2 * 3.14159 / (rstep * qstep))
-rfine = np.arange(total_point) * rstep
 
-In order to perform an inverse fast Fourier transform (IFFT), 
-the data does not have to be a power of 2 (2N) anymore. This means that 
-the total number of data points, including the ones that are padded with zeros, 
-can be any positive integer. However, if the function F(q) does not start from zero, 
-then it is necessary to add a zero value (or an extrapolated or interpolated value) 
-for F(q) between zero and qmin before applying the IFFT.
-
+Odd extension and zero filling for the rFFT calculation
+=======================================================
+1. Select the input q interval. Linearly interpolate F(q) only within that interval onto a uniform working grid with spacing ΔqFFT. 
+Set F(0) = 0 and fill the unmeasured region below the first input q value with zeros. 
+No low-q linear or spline extrapolation is applied.
+2. Construct negative-q values by reflection and sign reversal: F(−q) = −F(q). Fill the high-|q| regions with zeros. 
+The current implementation chooses a power-of-two array length M for efficient computation 
+and a sufficiently dense transform-generated r grid; this is an implementation choice, not a mathematical requirement of FFTs.
 
 ![img_15.png](img_15.png)
 
-The following figure illustrates how to pad the data by interpolation and 
-extrapolation when the line below qmin is zero. This technique helps to
-avoid artifacts and improve the quality of the inversion results. 
-The padding is done by fitting a straight line (y = ax or y=ax +b) to 
-the data points and extending it beyond the original range of qmin and qmax.
-In this code, “interpolate.interp1d (extrapolation=orangeline)” is used fill gap between qmin and zero.
+Odd extension of experimental F(q): the blue curve is the positive-q signal and the purple curve is its reflected, 
+sign-reversed counterpart. Zero-valued segments fill the unmeasured low-|q| region and pad the high-|q| tails. 
+Axis breaks compress the tails; the outer values near ±2860 Å⁻¹ describe this example’s computational domain, 
+not the measured q range. The display uses sorted signed q, while the calculation uses FFT storage order.
+
+3. Store q = 0 first, followed by the positive-q values and then the negative-q values in FFT storage order. 
+With dq_fft = ΔqFFT, the transform and its native r coordinates are calculated as follows:
+
+X = np.fft.rfft(odd)
+r_fft = np.arange(M // 2) * (2 * np.pi / (M * dq_fft))
+G_fft = -(dq_fft / np.pi) * X.imag[:M // 2]
+
+Here, odd is the real, odd-extended, zero-padded array. The minus sign follows NumPy’s forward-transform convention. 
+The result is interpolated onto the requested rmin, rmax and rstep grid. 
+A full forward FFT can alternatively be selected in the source code with the same array and normalization; it is not a separate GUI option.
+
+
+What zero padding changes and how to check the result
+=====================================================
+High-q zero padding inserts zeros beyond the available input interval. 
+At fixed ΔqFFT, increasing M decreases the native r-grid spacing, ΔrFFT = 2π/(MΔqFFT). 
+The plotted PDF is sampled more densely, but the measured q range, experimental resolution and information content are unchanged. Zero padding does not remove termination ripples.
+The comparison below uses the same experimental F(q) over q = 0.60–23 Å⁻¹, without Lorch modification or additional damping. 
+The direct-integration and rFFT results nearly overlap over r = 0–20 Å; the lower panel shows their small pointwise difference.
 
 ![img_16.png](img_16.png)
+Numerical consistency check: (A) G(r) from trapezoidal integration (black) and the odd-extension rFFT route (red). 
+(B) G(r)integral − G(r)rFFT. Small differences arise from numerical sampling, 
+endpoint treatment and interpolation; direct integration is a reference calculation rather than an exact analytical result.
+
+Inspect the boundaries before interpreting G(r). 
+A nonzero F(qmin) creates a discontinuity when the low-q region is zero-filled; improved low-q treatment remains needed. 
+Select qmax and correction parameters while preserving structural oscillations, 
+and inspect whether F(qmax) is reasonably close to zero. Do not tune the polynomial solely to force the endpoint to zero.
+
+
 
 The following paragraph shows how to improve the resolution of G(r) 
 by using zeropad in F(q). Zero padding is a technique that inserts zeros 
-after qmax in F(q) before performing IFFT. This increases the number 
+after qmax in F(q) before performing rFFT. This increases the number 
 of data points in G(r) and makes the peaks smoother. Zero padding is a technique 
 that improves the quality of G(r) by inserting additional data points 
 between the original ones obtained from F(q). This does not mean adding zeros, 
@@ -186,11 +252,11 @@ not using zeropad in F(q) and G(r).
 
 Example:
 ========
-With the xyz coordinate file, EZPIT provides I(q) to G(r). qdamp was zero (0).
+With the xyz coordinate file, EZPDF calculates I(q) to G(r). qdamp was zero (0).
 
 ![img_19.png](img_19.png)
 
-No ions in Ni(OH)2-109391-ICSD-10x10x1.xyz. please see the doc directory.
+Neutral-atom example: Ni(OH)2-109391-ICSD-10x10x1.xyz (see the doc directory).
 
 ![img_21.png](img_21.png)
 
@@ -212,13 +278,13 @@ For each element a, this parametrization yields the quantity fₐ(q) = Za − Ii
 which approaches the atomic number Za at low q and decays toward zero at high q. 
 Because Balyuzi fitted the quantity Za − Iinc(q) directly, the incoherent contribution of atom a is recovered as Za − fa(q), 
 which approaches zero at low q and Za at high q. The total Compton intensity is then the concentration-weighted sum over all atoms, 
-scaled by the Breit–Dirac recoil factor of equation (11), as given in equation below.
+scaled by the Breit–Dirac recoil factor shown below.
 
 ![img_26.png](img_26.png)
 
-ca (atomic fraction) = Na/N, where Na is the number of atoms of type a and N is the total number of atoms in the chemical unit); 
-Za is the atomic number of the ath type of atom; and fa(q) is the analytic incoherent-scattering parametrization of Balyuzi (1975). 
-f(q) = Ffit(q) = Za – Iainc(q).
+cₐ (atomic fraction) = Na/N, where Na is the number of atoms of type a and N is the total number of atoms in the chemical unit; 
+Za is the atomic number of the ath type of atom; and fa(q) is the analytic incoherent-scattering parametrization of Balyuzi (1975). f(q) = Ffit(q) = Za – Iainc(q).
+
 The Compton (incoherent) scattering coefficients were obtained from D. T. Cromer, J. Chem. Phys. 50, 4857 (1969), 
 as parametrized by H. H. M. Balyuzi, Acta Cryst. A31, 600 (1975). Balyuzi fitted the function F_fit(s) = Z − I_inc(s) 
 (not the incoherent intensity itself) to a sum of five Gaussians, where Z is the atomic number and s = sin(theta)/lambda. 
@@ -228,8 +294,9 @@ The fitted function is:
 
 where F_fit(k) is Balyuzi's five-Gaussian fit for the i-th atom (no ion information). Note that F_fit is NOT an atomic form factor: 
 it equals Z − I_inc, so the incoherent (Compton) intensity per atom is recovered by simple subtraction, I_inc = Z − F_fit. 
-k is converted to momentum transfer (q) using (0.25⋅q/π)**2, where ai, bi, and C are the parameters from  "compton_elementonly.txt". 
-The summation is over five terms. When the code reads each atom in the ".xyz coordinate file," it identifies the row of each atom in 
+Use s = q/(4π), so the Gaussian exponent contains s² = [q/(4π)]². compton_elementonly.txt stores the element names, 
+while compton_parmonly.txt stores the corresponding fit coefficients ai, bi and C. The summation is over five terms. 
+When the code reads each atom in the ".xyz coordinate file," it identifies the row of each atom in 
 "compton_elementonly.txt" and extracts the corresponding parameters such as ai, bi, and C from "compton_parmonly.txt."
 
 ![img_28.png](img_28.png)
@@ -265,15 +332,16 @@ Figure presents the background-subtracted experimental intensity (Net I(q))
 
 ![img_37.png](img_37.png)
 
-Figure exhibits the structure function (not normalized S(q) = Standard S(q)) derived from the experimental intensity I(q) 
-(Net I(q) in the previous Figure. The not normalized S(q) shows an increase in intensity as a function of increasing q (1/Å), 
-which is attributed to the imperfection of all subtraction and the instrumental limitations. 
+Figure exhibits the structure function (uncorrected S(q), labelled Standard S(q) in the legacy plot) derived from the experimental intensity I(q) 
+(Net I(q) in the previous Figure. 
+The uncorrected S(q) in this example has a slowly varying baseline deviation, which may reflect residual experimental and background contributions. 
+S(q) should oscillate about unity at sufficiently high q; an increasing baseline is not an expected physical requirement.
 To bring the oscillation of S(q) around 1, a form of correction is necessary.
 EZPDF employs a polynomial correction, similar to the approach taken by xPDFsuite. The normalized S(q) (Poly-corrected S(q)) then oscillates around 1.
 
 ![img_38.png](img_38.png)
 
-As an example of polynomial correction of S(q), polynomial order is used instead of r-poly, which is adopted in xPDFsuite.
+EZPDF exposes a polynomial-setting control; xPDFsuite uses rpoly to constrain its correction. These parameters should not be interpreted as directly interchangeable.
 The black line represents the "Experimental S(q)" which is not corrected by polynomial.
 The red line denotes the calculated polynomial for the black line.
 The blue line illustrates the S(q) after subtracting the red line from the black line.
@@ -287,16 +355,18 @@ Numerical recipes by W. Press, B. Flannery, S. Teukolsky, W. Vetterling
 ![img_38-1.png](img_38-1.png)
 
 
-More detail of S(q) calculation
-===============================
-Due to imperfection of all subtraction, the calculated S(q) does not oscillate about the baseline (1), shown as baseline (1) shown in the black line. 
-So, To bring oscillation of S(q) to 1 shown in redline (Calculated polynomial), we need to use polynomial correction. 
-Vandermonde matrix and least square fit are combined to provide polynomial equation. 
-Actually Numpy _polyfit_ in python use the same method. So, you can used Numpy polyfit directrly.
-The experimental structure function S(q) is obtained from the background-subtracted intensity using an ad hoc X-ray normalization 
-(PDFgetX3 by Juhás et al., J. Appl. Cryst. 46, 560 (2013)).
+Details of the S(q) calculation. Residual baseline deviations are corrected after composition-dependent form-factor normalization. 
+The fit is made to Fraw(q) = q[Sraw(q) − 1], with the polynomial constant term constrained to zero; the fitted function divided by q is then subtracted from Sraw(q). 
+A default numpy.polyfit fit includes a freely fitted constant term and cannot be substituted without imposing the same constraint.
 
-![Experimental S(q) calculation.png](Experimental%20S%28q%29%20calculation.png)
+The experimental structure function S(q) is obtained from the background-subtracted intensity using an ad hoc X-ray normalization 
+(PDFgetX3-style; Juhás et al., J. Appl. Cryst. 46, 560 (2013)).
+
+
+Experimental normalization. Define J(q) = I_bkgsubtracted(q)/⟨f(q)⟩² and A(q) = ⟨f(q)²⟩/⟨f(q)⟩². 
+Over the selected q points, the least-squares scale is k = Σ[J(q)A(q)]/Σ[J(q)²]. 
+The uncorrected structure factor is Sraw(q) = kJ(q) − A(q) + 1. Polynomial correction is applied subsequently. 
+This scale does not establish rigorous absolute-intensity calibration.
 
 As an illustrative example, data from disordered cobalt oxide is presented. 
 The top panel displays the scattering intensities for the cobalt oxide sample(black), the background (red), and the resulting background-subtracted data(blue). 
@@ -306,9 +376,12 @@ This particular result arises because unwanted signals were not perfectly elimin
 the peaks are adjusted to oscillate around unity (1). The low panel demonstrates how polynomials of two different degrees fit the calculated S(q) data. 
 For better visualization, these polynomials were shifted by an offset of 1 and superimposed onto the S(q) plot. 
 Notably, the high-degree polynomial (order 20.0, blue) exhibits significant deviations from the appropriate degree (order 7.208, red), particularly in the low-q region.  
-EZPDF constructs the polynomial fit explicitly from the Vandermonde matrix and numpy.linalg.lstsq rather than calling numpy.polyfit; the two are mathematically equivalent, 
-but the explicit formulation gives direct control over the design matrix used for the non-integer-order interpolation described below. 
-This error component is subsequently subtracted from the raw data to yield the final structure factor. 
+For an integer setting n, the correction is obtained from a constrained least-squares polynomial fit to Fraw(q) = q[Sraw(q) − 1], 
+using numpy.vander and numpy.linalg.lstsq with the constant column omitted. The correction applied to Sraw(q) is the fitted polynomial divided by q. 
+A non-integer setting blends the corrections at the adjacent integer orders: a setting of 7.208 uses weights 0.792 and 0.208 for settings 7 and 8, respectively. 
+This is a continuous blend, not a polynomial with a fractional mathematical degree. Inspect S(q), F(q) and G(r) as the setting changes. 
+A high-order correction can remove genuine structural oscillations; an improved baseline or smoother PDF alone does not establish accuracy.
+
 To provide finer control over this normalization, the software extends this approach to support non-integer polynomial orders through a linear interpolation strategy. 
 When a real number is specified as the target polynomial order (poly_order), the system first calculates the correction functions for the nearest lower integer order (poly_lo) 
 and the nearest higher integer order (poly_hi) using the Vandermonde-based least-squares method described above. 
@@ -322,34 +395,33 @@ The weight assigned to the higher order (w_hi) is the fractional part (0.208), a
 Consequently, the final interpolated polynomial correction function is derived as a linear combination given by P(q)7.208 = 0.792 × P(q)7 + 0.208 × P(q)8.
 
 
-![S(q)_calculation_polynomials.png](S(q)_calculation_polynomials.png)
-
-The top graph in the second set depicts the data length required before performing an Inverse Fast Fourier Transform (IFFT), 
-which requires padding data from 0 to qmin (red) and after qmax (blue). 
-Although an integral function can calculate the data from qmin to qmax without padding, the process is much slower than the IFFT method.
-The second, third, and bottom graphs evaluate how various padding methods after qmax influence the resulting G(r), 
-showing no significant difference between Zero, Constant, and Decay padding for distances above 1 Å. 
-Consequently, the EZPDF GUI version uses Zero padding for any data added after qmax.
+![img_39.png](img_39.png)
 
 
-![Pad_F(q)_Gr result.png](Pad_F(q)_Gr result.png)
+The current Fourier-transform procedure is described in the section “Odd extension and zero filling for the rFFT calculation.” 
+It uses low-q zero filling, odd extension and high-q zero padding. The previous one-sided IFFT comparison of zero, 
+constant and decay padding has been removed to avoid confusion with the current implementation.
+Effect of polynomial correction on G(r)
+The upper panel overlays corrections obtained with two polynomial settings on the uncorrected S(q).
+The lower panel shows that the higher setting suppresses short-range PDF features. 
+This illustrates overcorrection: part of the structural signal is absorbed into the fitted baseline. 
+Compare multiple reasonable settings rather than selecting solely for visual smoothness.
 
-How  polynomial subtraction in S(q) affect on G(r):
-The  top figure display how two different polynomial orders are superimposed on S(q). 
-The bottom plot illustrates the pair distribution function G(r), revealing that using a high-order polynomial leads to a loss of peaks in the low-r region(red). 
-This occurs because the high-order polynomial subtracts an excessive amount of intensity from the original calculated S(q).
 
-![Polynomial_low_r_Gr.png](Polynomial_low_r_Gr.png)
+![img_40.png](img_40.png)
 
-For comparison, S(q) (xpdfsute_S(q)) obtained from xPDFsuite is also displayed. 
-Both S(q) representations are quite similar except low q in S(q).
+For comparison, S(q) (xPDFsuite_S(q)) obtained from xPDFsuite is also displayed. 
+The S(q) profiles are similar overall, with differences in the low-q region.
 the middle figure presents the reduced structure function (F(q)) derived from S(q) in Figure d), where F(q) oscillates around 0. 
-For comparison, F(q) (xpdfsute_F(q)) from xPDFsuite is also shown. Apart from a difference in scaling, 
-both versions of F(q) are identical.
-The bottom figure displays pair distribution functions (integral-G(r), ifft-G(r)) derived from F(q) in the middle figure using inverse fast Fourier transform (ifft). 
-For comparison, G(r) (xpdfsute_G(r)) from xPDFsuite is also shown. the pair distribution functions are identical.
+For comparison, F(q) (xpdfsute_F(q)) from xPDFsuite is also shown. The main F(q) oscillations are similar, although their amplitudes differ.
 
-![img_s(q)_f(q)_g(r)_comparison.png](img_s%28q%29_f%28q%29_g%28r%29_comparison.png)
+The lower panel is a legacy comparison of direct-integration and IFFT results. 
+The current implementation uses the odd-extension rFFT procedure described earlier; 
+this older plot should not be read as a benchmark of the current transform. 
+For comparison, G(r) (xpdfsute_G(r)) from xPDFsuite is also shown. 
+the principal peak positions and overall PDF profiles are similar; this does not establish identical scaling or absolute normalization accuracy.
+
+![img_41.png](img_41.png)
 
 
 GUI of EZPDF 
@@ -406,10 +478,11 @@ Clicking the 'Delete Selected' button will trigger a 'Confirm Deletion' prompt. 
 
 Prerequisites
 =============
-Python 3.11: The application utilizes syntax and features introduced in Python 3.11.
-Note: EZPDF has been specifically validated on 3.11; compatibility with newer versions (3.12+) is currently untested.
-Operating System: Windows (64-bit).
-Note: 32-bit environments, macOS, and Linux are currently untested.
+Environment and installation. The examples in this tutorial were prepared using Python 3.11 on 64-bit Windows. 
+Consult the requirements supplied with your downloaded release for dependency versions. 
+GUI dependencies include PySide6 and the numerical/plotting packages used by the processing modules. 
+Compatibility with other Python versions or operating systems should be checked for the specific release; 
+the screenshots below document an example environment, not universal installation requirements.
 
 Dependencies
 Core Framework: PySide6 is the primary dependency for the GUI.
@@ -419,37 +492,35 @@ Compatibility Check: Before installation, please ensure your Python environment 
 ![Required software 3](Reqired%20software3.png)
 
 
-Smooth function: WH_smooth_GUI
-==============================
-A common challenge in pair distribution function (PDF) analysis arises when the scattering signal of interest is weak relative to, 
-or comparable in magnitude with, the background, as is typical for low-concentration samples, thin films, dilute solutions, 
-in situ cell measurements, or operando electrochemical setups. In such cases, even small inaccuracies in the background measurement or 
-in the determination of the background scaling factor α can leave residual sharp features, glitches, 
-or oscillatory artifacts in the background-subtracted intensity I(q) − α × IBkg(q). These residuals are often confined to narrow q intervals but, 
-if left untreated, propagate into the Fourier transform and contaminate the resulting G(r) with spurious peaks or low-r ripples. 
-To address this issue without distorting the genuine scattering signal elsewhere, a dedicated range-selective processing utility, 
-WH_smooth_GUI, has been developed as a standalone companion tool to EZPDF. The four available modes are: (i) Whittaker–Henderson (WH) smoothing, 
-which suppresses high-frequency noise while preserving the underlying scattering envelope; (ii) Linear interpolation, which replaces a q interval with
-a straight line between its boundary points and is well-suited for removing very narrow, isolated artifacts; (iii) Automatic cubic-spline interpolation, 
-which fits a natural cubic spline through 2N anchor points sampled symmetrically outside the targeted q interval, providing a smooth baseline restoration 
-that follows the local trend of the data; and (iv) Manual cubic-spline interpolation, in which the user directly clicks on the graph to define anchor points, 
-giving full control when the residual feature is irregular or when the automatic methods fail to capture the desired baseline shape. 
-All spline-based modes are performed in log-space when the data are strictly positive, so the reconstructed segment correctly follows the exponentially 
-decaying nature of typical scattering profiles. Independent λ, polynomial order, and blend-width parameters can be assigned to every q range, 
-allowing the processing strength and the cosine-taper transition width to be tailored to the local character of the data. At each range boundary, 
-a cosine-taper blending function ensures a smooth, artifact-free transition between the processed segment and the original data, preventing the introduction of discontinuities.
-Figure  shows the GUI of the standalone WH Range Smoother utility applied to an experimental dataset. The tool performs processing on the background-subtracted intensity I(q) − α × IBkg(q), 
-using a scale factor α = 2.17 to balance the sample and background contributions. WH smoothing is applied independently across three user-defined q ranges: 
-q = 1.9 – 2.3 / Å with λ = 10,000,000 (blend = 14 points), q = 2.3 – 8.0 / Å with λ = 1,000 (blend = 20), and q = 10 – 25 / Å with λ = 1,000 (blend = 20). 
-The cosine-taper blend at each boundary preserves continuity with the unmodified regions of the data, as confirmed by the residual curve in the lower panel, 
-where ΔI ≈ 0 outside the shaded smoothing windows. The use of a per-range λ parameter is essential because the local character of the scattering signal differs significantly across the q axis: 
-at low q (1.9 – 2.3 / Å) the data contain sharp, narrow features that require very strong smoothing to suppress, whereas at higher q a moderate λ is sufficient 
-to remove statistical noise without distorting the underlying scattering envelope. The reference curve (scaled by a factor of 10) overlaid on the main panel serves 
-as an independent validation that the smoothed result faithfully reproduces the expected scattering profile across the entire q range.
+WH smoothing and interpolation with WH_smooth_GUI
+=================================================
+WH_smooth_GUI is a standalone companion tool for processing selected q intervals after subtraction of a scaled background, 
+I_sub(q) = I_sample(q) − αI_background(q). Four modes are available: Whittaker–Henderson (WH) smoothing, 
+linear interpolation, automatic cubic-spline interpolation and manual cubic-spline interpolation. 
+WH smoothing reduces statistical fluctuations; its strength λ and difference order are set separately for each WH range. 
+Larger λ gives stronger smoothing for a fixed order and sampling grid. Manual Spline instead uses editable control points. 
+Spline interpolation uses logarithmic intensity when all anchor intensities are positive and linear intensity otherwise. 
+The blend width, specified in data points, controls the cosine-taper transition to the unprocessed signal at the range boundaries.
+In panel A, the background scale is α = 2.17. The three enabled ranges are: q = 2.00–2.58 / Å, 
+Manual Spline with 12 control points and a blend width of 3 points; q = 3.05–4.23 / Å, WH Smooth with λ = 50, 
+difference order 1 and a blend width of 15 points; and q = 5.00–20.00 / Å, WH Smooth with λ = 100, 
+difference order 2 and a blend width of 20 points. These settings illustrate the displayed dataset and are not recommended defaults.
+Panel B shows raw sample intensity (black), the scaled background (blue), 
+background-subtracted intensity labelled “Processed I(q)” (red), the final result labelled “Smoothed” (purple), and an optional reference multiplied by 10 (green dashed). 
+The final result includes both smoothing and interpolation. Shaded bands identify the processing ranges, and red control points mark the manual spline. 
+The lower panel plots ΔI(q) = I_sub(q) − I_final(q); it shows the changes introduced by processing rather than an independent estimate of measurement uncertainty.
 
-Graphical user interface of the standalone WH Range Smoother utility. (Top) Overlaid curves on a logarithmic I(q) scale: raw sample intensity I(q) (black), 
-scaled background α × IBkg(q) (blue), background-subtracted intensity I(q) − α × IBkg(q) (red), the WH smoothed result (purple), and a scaled reference curve 
-(green dashed) for comparison. Yellow shaded bands indicate the user-defined q ranges over which smoothing is applied. 
-The inset (green rectangle) expands the q = 1.9–2.3 / Å region. (Bottom) Difference curve ΔI(q) = I(q) – ISmoothed(q).
+![WH_smooth.png](WH_smooth.png)
 
-![WH_smooth_GUI-5.jpg](WH_smooth_GUI-5.jpg)
+Using the displayed interface
+=============================
+Add sample and background files to their respective lists, select the sample, and adjust α. 
+Use Add Range to define an interval, choose its processing mode and set the relevant parameters. 
+For Manual Spline, use Edit Points to adjust the control points while inspecting the plot. 
+Compare the input, final result and difference curve before selecting Save Smoothed Data.
+Range-selective processing can assist with weak signals from amorphous materials or dilute molecular samples. 
+Excessive smoothing can suppress structural oscillations, and interpolation replaces measured values without recovering missing information. 
+A scaled reference and a small difference outside the selected ranges do not validate the processed intensity. 
+Check the effect on subsequent PDF results and retain the original data.
+
+
