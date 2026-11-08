@@ -1,54 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="4890037d-cfa8-4311-8d73-207b3cfbb6c6" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/model/math_functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/model/math_functions.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/control_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/control_panel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/file_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/file_panel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/main_window.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/ui_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/ui_helpers.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/EZPDF_code_version.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/aff_elementonly.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/aff_parmonly.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/compton_atomicnumber.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/compton_element_only.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/data/compton_parameter_only.txt" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/demo_Comptonscattering_0731_2026.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/demo_experimental_data_testingcode_0731_2026.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/examples/demo_xyz_model_0731_2026.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/losa/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/losa/loadersaver.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/prep/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/prep/preprocessing.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proc/__init__.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/proc/processing.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/Baseline_extract_Gr.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/EZPDF_GUI.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/EZPDF_GUI.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/EZPDF_plot.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/EZPDF_plot.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/EZPDF_plot_save_plot option.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/EZPDF_plot_save_plot option.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/EZPIT_tutorial_revised.docx" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/Experimental S(q) calculation.svg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/Pad_F(q)_Gr result.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/Polynomial_low_r_Gr.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/S(q) calculation of experimental I(q).png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/S(q)_calculation_polynomials-2.svg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/S(q)_calculation_polynomials.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/S(q)_calculation_polynomials.svg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/WH_smooth_GUI-5.jpg" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/WH_smooth_GUI-5.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/bitmap.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/img_15.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/img_16.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/img_16.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/img_26.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/img_26.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/img_38-2.png" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/img_39.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/img_39.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/img_40.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/img_40.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/img_41.png" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/img_41.png" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../docs/tutorial.md" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/tutorial.md" afterDir="false" />
-    </list>
+    <list default="true" id="4890037d-cfa8-4311-8d73-207b3cfbb6c6" name="Changes" comment="" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
