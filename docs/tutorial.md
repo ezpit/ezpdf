@@ -471,7 +471,9 @@ PDFgetX2 gives similar peak positions but different amplitudes and baselines, pa
 The G(r) peaks remain closely aligned over r = 0–40 Å, although their amplitudes differ. 
 All three results retain long-range oscillations over r = 40–80 Å, consistent with the crystalline character of the sample; 
 PDFgetX2 shows generally larger amplitudes in parts of this interval.
+
 Interpretation and limitations
+==============================
 Agreement in peak positions and profile shape does not establish absolute-intensity accuracy. 
 The precise causes of the observed differences have not been determined: direct comparison of the implementations and processing settings is required. 
 These examples are not an exhaustive validation, and Gudrun results are not included.
