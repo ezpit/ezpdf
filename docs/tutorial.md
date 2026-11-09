@@ -540,8 +540,11 @@ Compatibility with other Python versions or operating systems should be checked 
 the screenshots below document an example environment, not universal installation requirements.
 
 Dependencies
+============
 Core Framework: PySide6 is the primary dependency for the GUI.
-Compatibility Check: Before installation, please ensure your Python environment aligns with PySide6 version requirements to prevent library conflicts.
+Compatibility Check: Before installation, please ensure 
+your Python environment aligns with PySide6 version requirements to prevent library conflicts.
+
 ![Required software 1](Reqired%20software1.png)
 ![Required software 2](Reqired%20software2.png)
 ![Required software 3](Reqired%20software3.png)
