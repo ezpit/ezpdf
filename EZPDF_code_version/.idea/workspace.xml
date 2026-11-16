@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="4890037d-cfa8-4311-8d73-207b3cfbb6c6" name="Changes" comment="" />
+    <list default="true" id="4890037d-cfa8-4311-8d73-207b3cfbb6c6" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/model/math_functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/model/math_functions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/control_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/control_panel.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/file_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/file_panel.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/main_window.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/ui_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/ui_helpers.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -31,22 +37,19 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.demo_Comptonscattering_0731_2026.executor": "Run",
-    "Python.demo_expGr_integral.executor": "Run",
-    "Python.demo_experimental_data_testingcode_0731_2026.executor": "Run",
-    "Python.demo_fft_padding.executor": "Run",
-    "Python.demo_pavol_fft_padding.executor": "Run",
-    "Python.demo_xyz_model_0731_2026.executor": "Run",
-    "Python.processing.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "main",
-    "last_opened_file_path": "C:/Users/gkwon/Pycharmprojects/ezpit/EZPDF_code_version",
-    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.demo_Comptonscattering_0731_2026.executor&quot;: &quot;Run&quot;,
+    &quot;Python.demo_expGr_integral.executor&quot;: &quot;Run&quot;,
+    &quot;Python.demo_experimental_data_testingcode_0731_2026.executor&quot;: &quot;Run&quot;,
+    &quot;Python.demo_pavol_fft_padding.executor&quot;: &quot;Run&quot;,
+    &quot;Python.demo_xyz_model_0731_2026.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/gkwon/Pycharmprojects/ezpit/EZPDF_Code_Updated&quot;
   }
-}]]></component>
+}</component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>

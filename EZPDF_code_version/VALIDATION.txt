@@ -1,0 +1,6 @@
+1 atoms, 101 Q: original=0.0020s, vectorized=0.0005s, ratio=3.94; PASS I/S/F and means
+27 atoms, 101 Q: original=0.0049s, vectorized=0.0010s, ratio=4.86; PASS I/S/F and means
+500 atoms, 101 Q: original=0.5456s, vectorized=0.1852s, ratio=2.95; PASS I/S/F and means
+1000 atoms, 101 Q: original=2.2471s, vectorized=0.7627s, ratio=2.95; PASS I/S/F and means
+Synthetic coordinates; one timing per case, not guaranteed user-PC speed.
+All original functions preserved. Q=0, self, one atom and coincident pair checked.
