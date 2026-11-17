@@ -29,6 +29,31 @@ VALID_EXTENSIONS: list[str] = [
     ".compton",
 ]
 
+# The panel (0=I(q), 1=S(q), 2=F(q), 3=G(r)) a given file type primarily fills.
+# Used when plotting several files at once, to show only the relevant panel(s)
+# up front. Anything not listed defaults to I(q).
+PRIMARY_PANEL = {
+    ".chi": 0, ".iq": 0, ".xy": 0, ".dat": 0, ".txt": 0, ".caliq": 0, ".compton": 0,
+    ".sq": 1, ".calsq": 1,
+    ".fq": 2, ".calfq": 2,
+    ".gr": 3, ".calgr": 3,
+}
+
+# Panels shown first when a SINGLE file is opened, by extension:
+# (I(q), S(q), F(q), G(r)). Only the panels that come from the file's own data
+# onward are shown; the user can tick the others later in the plot window.
+# [KR] 파일 하나를 열 때 확장자별로 처음 보여줄 패널 (I(q), S(q), F(q), G(r)).
+#      파일 데이터 이후 단계의 패널만 보여주고, 나머지는 사용자가 나중에 켠다.
+SINGLE_FILE_PANELS = {
+    ".chi": (True, True, True, True), ".iq": (True, True, True, True),
+    ".xy": (True, True, True, True), ".dat": (True, True, True, True),
+    ".txt": (True, True, True, True), ".caliq": (True, True, True, True),
+    ".xyz": (True, True, True, True),
+    ".sq": (False, True, True, True), ".calsq": (False, True, True, True),
+    ".fq": (False, False, True, True), ".calfq": (False, False, True, True),
+    ".gr": (False, False, False, True), ".calgr": (False, False, False, True),
+}
+
 
 def load_selected_files(selected_items, label_widget, plot_window_ref, control_panel, max_length_file_name):
     if not selected_items:
@@ -46,46 +71,32 @@ def load_selected_files(selected_items, label_widget, plot_window_ref, control_p
             ext = extensions[0]
             short_name = get_short_name(os.path.basename(path), max_length_file_name)
 
-            (
-                xs,
-                ys,
-                bkg_x,
-                bkg_y,
-                raw_x,
-                raw_y,
-                list_Sq,
-                Fq_smoothed,
-                mean_sq_fi,
-                sq_mean_fi,
-                r_smoothed,
-                G_smoothed,
-            ) = get_graph_data(path, ext, control_panel)
+            data = get_graph_data(path, ext, control_panel)
 
             if plot_window_ref is None or not plot_window_ref.isVisible():
                 plot_window_ref = PlotWindow()
                 plot_window_ref.show()
 
-            plot_window_ref.plot_data(
-                xs,
-                ys,
-                bkg_x,
-                bkg_y,
-                raw_x,
-                raw_y,
-                list_Sq,
-                Fq_smoothed,
-                mean_sq_fi,
-                sq_mean_fi,
-                r_smoothed,
-                G_smoothed,
-                os.path.basename(path),
-            )
+            # Fresh file: start every panel auto-scaling (clear prior zoom state).
+            try:
+                plot_window_ref._user_zoomed = [False, False, False, False]
+            except Exception:
+                pass
+
+            plot_window_ref.plot_data(title=os.path.basename(path), **data)
 
             # A Compton curve only has an I(q)-type panel; S(q), F(q) and G(r)
             # would just be empty, so show the I(q) panel alone. The user can
             # still tick the other boxes if they want them.
-            if ext == ".compton":
-                plot_window_ref.enable_graphs(enable_iq=True, enable_sq=False, enable_fq=False, enable_gr=False)
+            if ext == '.compton':
+                plot_window_ref.enable_graphs(enable_iq=True, enable_sq=False,
+                                              enable_fq=False, enable_gr=False)
+            # Other file types: show the panels listed in SINGLE_FILE_PANELS.
+            # [KR] 그 외 확장자: SINGLE_FILE_PANELS에 정한 패널만 먼저 보여준다.
+            elif ext in SINGLE_FILE_PANELS:
+                _iq, _sq, _fq, _gr = SINGLE_FILE_PANELS[ext]
+                plot_window_ref.enable_graphs(enable_iq=_iq, enable_sq=_sq,
+                                              enable_fq=_fq, enable_gr=_gr)
 
             label_widget.setText(f"Showing plot for {short_name}")
 
@@ -93,16 +104,31 @@ def load_selected_files(selected_items, label_widget, plot_window_ref, control_p
             legend_names = [os.path.basename(p) for p in paths]
             xs_list, ys_list = [], []
 
-            for path, ext in zip(paths, extensions, strict=False):
-                xs, ys, *_ = get_graph_data(path, ext, control_panel, multiple_graphs=True)
-                xs_list.append(xs)
-                ys_list.append(ys)
+            for path, ext in zip(paths, extensions):
+                _d = get_graph_data(path, ext, control_panel, multiple_graphs=True)
+                xs_list.append(_d["xs"])
+                ys_list.append(_d["ys"])
 
             if plot_window_ref is None:
                 plot_window_ref = PlotWindow()
                 plot_window_ref.show()
 
+            try:
+                plot_window_ref._user_zoomed = [False, False, False, False]
+            except Exception:
+                pass
+
             plot_window_ref.plot_multiple(xs_list, ys_list, titles=legend_names)
+
+            # Show only the panel(s) that correspond to the selected file types
+            # (e.g. several .chi/.iq -> I(q) only; .sq -> S(q); .gr -> G(r)).
+            # The other panels' data is still computed, so the user can turn
+            # them on later with the plot-window toggles.
+            panels = {PRIMARY_PANEL.get(ext, 0) for ext in extensions}
+            plot_window_ref.enable_graphs(
+                enable_iq=(0 in panels), enable_sq=(1 in panels),
+                enable_fq=(2 in panels), enable_gr=(3 in panels))
+
             label_widget.setText(f"Showing plots for {len(paths)} files")
 
         return plot_window_ref
@@ -122,20 +148,16 @@ def get_valid_files(dir_path: Path, extensions: list[str] = VALID_EXTENSIONS) ->
     )
 
 
-def add_files_to_list_widget(
-    file_list_widget,
-    label_widget,
-    source,
-    loaded_files,
-    is_folder=True,
-    max_name_length=25,
-):
+def add_files_to_list_widget(file_list_widget, label_widget, source, loaded_files, is_folder=True, max_name_length=25, preserve_order=False):
     if is_folder:
         valid_file_paths = get_valid_files(source)
     else:
         valid_file_paths = [f for f in source if any(f.lower().endswith(ext) for ext in VALID_EXTENSIONS)]
 
-    valid_file_paths.sort(key=lambda f: os.path.getmtime(f), reverse=True)
+    # preserve_order keeps the caller's exact order (e.g. restoring a project's
+    # saved file order). Otherwise sort newest-first, as when adding a folder.
+    if not preserve_order:
+        valid_file_paths.sort(key=lambda f: os.path.getmtime(f), reverse=True)
 
     new_file_paths = [f for f in valid_file_paths if f not in loaded_files]
     loaded_files.update(new_file_paths)
@@ -218,6 +240,52 @@ def _restore_plot_ranges(plot_window, ranges, restore_y=True):
             continue
 
 
+def _capture_x_extents(plot_window):
+    """Record each panel's current x-data extent (min, max) from plot_window.xs."""
+    ext = []
+    xs = getattr(plot_window, 'xs', None)
+    for i in range(4):
+        try:
+            xi = xs[i] if (xs is not None and len(xs) > i) else None
+            if xi is not None and len(xi) > 0:
+                ext.append((float(np.min(xi)), float(np.max(xi))))
+            else:
+                ext.append(None)
+        except Exception:
+            ext.append(None)
+    return ext
+
+
+def _restore_saved_ranges(plot_window, saved_ranges):
+    """Re-apply the saved view only on panels the user manually zoomed. Panels
+    that were auto-scaling keep the fresh auto-range that plot_data() applied,
+    so changing a parameter rescales them to the new data. The Background /
+    Original-curve toggles re-fit via _autorange_and_fix_x0(). Press R to return
+    a panel to auto-scaling.
+    """
+    if plot_window is None or not saved_ranges:
+        return
+    zoomed = getattr(plot_window, '_user_zoomed', None)
+    plots = getattr(plot_window, 'plots', [])
+    for i, plot in enumerate(plots):
+        if i >= len(saved_ranges):
+            break
+        # Only keep the view on panels the user zoomed.
+        if zoomed is None or i >= len(zoomed) or not zoomed[i]:
+            continue
+        saved = saved_ranges[i]
+        if not saved:
+            continue
+        try:
+            (x0, x1), (y0, y1) = saved
+            vb = plot.getViewBox()
+            vb.enableAutoRange(x=False, y=False)
+            plot.setXRange(float(x0), float(x1), padding=0)
+            plot.setYRange(float(y0), float(y1), padding=0)
+        except Exception:
+            continue
+
+
 def update_current_graph(selected_items, control_panel, plot_window):
     # 그래프 잠금 상태면 업데이트하지 않음
     if plot_window is not None and hasattr(plot_window, "is_locked") and plot_window.is_locked():
@@ -253,37 +321,9 @@ def update_current_graph(selected_items, control_panel, plot_window):
                 return
 
             extension = os.path.splitext(path)[1].lower()
-            (
-                xs,
-                ys,
-                bkg_x,
-                bkg_y,
-                raw_x,
-                raw_y,
-                list_Sq,
-                Fq_smoothed,
-                mean_sq_fi,
-                sq_mean_fi,
-                r_smoothed,
-                G_smoothed,
-            ) = get_graph_data(path, extension, control_panel)
+            data = get_graph_data(path, extension, control_panel)
 
-            plot_window.plot_data(
-                xs,
-                ys,
-                bkg_x,
-                bkg_y,
-                raw_x,
-                raw_y,
-                list_Sq,
-                Fq_smoothed,
-                mean_sq_fi,
-                sq_mean_fi,
-                r_smoothed,
-                G_smoothed,
-                os.path.basename(path),
-                bring_front=False,
-            )
+            plot_window.plot_data(title=os.path.basename(path), bring_front=False, **data)
 
             # Compton curves only populate the I(q) panel (see load_selected_files).
             if extension == ".compton":
@@ -298,19 +338,17 @@ def update_current_graph(selected_items, control_panel, plot_window):
                 if not os.path.isfile(path):
                     continue
                 ext = os.path.splitext(path)[1].lower()
-                xs, ys, *_ = get_graph_data(path, ext, control_panel, multiple_graphs=True)
-                list_xs.append(xs)
-                list_ys.append(ys)
+                _d = get_graph_data(path, ext, control_panel, multiple_graphs=True)
+                list_xs.append(_d["xs"])
+                list_ys.append(_d["ys"])
 
             if list_xs and list_ys:
                 plot_window.plot_multiple(list_xs, list_ys, titles=legend_names, bring_front=False)
 
-        # Do NOT restore ranges after a parameter-driven update.
-        # plot_data() already calls _autorange_and_fix_x0() for every subplot,
-        # which correctly scales both x and y to the new data.
-        # Restoring saved ranges would re-lock stale axes (e.g. G(r) x-range
-        # stuck at old rmax, S(q) y-range stuck at pre-normalisation values).
-        # _restore_plot_ranges(plot_window, saved_ranges)  ← intentionally skipped
+        # Preserve the user's zoom on every panel after a parameter-driven
+        # re-plot. Toggling Background/Original curves re-fits via
+        # _autorange_and_fix_x0(); press R to reset to auto-range.
+        _restore_saved_ranges(plot_window, saved_ranges)
 
     except Exception as e:
         msg = QMessageBox(control_panel)

@@ -5,7 +5,12 @@ import re
 import numpy as np
 
 # [중요] Qt 모듈 임포트
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QFormLayout, QTabWidget, QLineEdit,
+    QPushButton, QLabel, QHBoxLayout, QMessageBox,
+    QButtonGroup, QComboBox, QRadioButton, QFileDialog, QCheckBox, QStyle
+)
 from PySide6.QtGui import QDoubleValidator, QFont
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -61,6 +66,15 @@ class ControlPanel(QWidget):
         # can ask which source to use even after the file is deselected.
         self._compton_xyz_path = None
         self._compton_xyz_comp = None
+
+        # Debounce timer: while a slider is dragged, valueChanged fires many
+        # times; each just restarts this timer, so the (possibly heavy, multi-
+        # file) recompute runs only once after the user pauses. The slider's
+        # numeric field still updates live.
+        self._update_timer = QTimer(self)
+        self._update_timer.setSingleShot(True)
+        self._update_timer.timeout.connect(self._do_send_update)
+        self._update_delay_ms = 150
 
         fixed_font = QFont()
         fixed_font.setPointSize(9)
@@ -212,6 +226,30 @@ class ControlPanel(QWidget):
 
         main_v_layout.addWidget(form_widget)
         main_v_layout.addStretch(1)
+
+        # EZPDF logo in the bottom-right corner of the tab (same placement on all
+        # tabs): right edge lined up with the Reset button.
+        # [KR] 탭의 오른쪽 아래 모서리에 EZPDF 로고 표시 (모든 탭 같은 위치).
+        #      오른쪽 끝을 Reset 버튼과 맞춘다.
+        try:
+            from PySide6.QtGui import QPixmap, QGuiApplication
+            from model.elem_data import resource_path
+            _logo_file = resource_path(os.path.join("ui", "icons", "EZPDF_logo_wordmark.png"))
+            if os.path.exists(_logo_file):
+                _logo_width = 120  # on-screen width in logical pixels
+                _screen = QGuiApplication.primaryScreen()
+                _dpr = _screen.devicePixelRatio() if _screen else 1.0
+                _pix = QPixmap(_logo_file).scaledToWidth(
+                    int(_logo_width * _dpr), Qt.TransformationMode.SmoothTransformation)
+                _pix.setDevicePixelRatio(_dpr)
+                self.basic_logo_label = QLabel()
+                self.basic_logo_label.setPixmap(_pix)
+                _logo_row = QHBoxLayout()
+                _logo_row.addStretch()
+                _logo_row.addWidget(self.basic_logo_label)
+                main_v_layout.addLayout(_logo_row)
+        except Exception:
+            pass
 
         return basic_tab
 
@@ -415,25 +453,8 @@ class ControlPanel(QWidget):
             with_buttons=True,
         )
 
-        self.pdf_qstep_input = QLineEdit()
-        self.pdf_qstep_input.setText("0.01")
-        self.pdf_qstep_input.setAlignment(Qt.AlignmentFlag.AlignRight)
-        self.pdf_qstep_input.setPlaceholderText("0.01")
-        self.pdf_qstep_input.editingFinished.connect(self.send_update)
-
-        qstep_layout = QHBoxLayout()
-        qstep_layout.addWidget(self.pdf_qstep_input, 1)
-
-        default_label = QLabel("Default: 0.01")
-        default_label.setStyleSheet("color: #666; margin-left: 5px; font-style: italic; font-weight: bold;")
-
-        qstep_layout.addWidget(default_label, 0)
-
-        pdf_layout.addRow("q_step:", qstep_layout)
-
-        self.qmax_slider, self.qmax_input = add_slider_field(
-            "q_max:", 0.0, 30, 3, 30.000, pdf_layout, with_buttons=True
-        )
+        self.qmax_slider, self.qmax_input = add_slider_field("q_max:", 0.0, 30, 3, 30.000, pdf_layout,
+                                                             with_buttons=True)
         self.qmin_slider, self.qmin_input = add_slider_field("q_min:", 0.0, 2, 3, 0.000, pdf_layout, with_buttons=True)
 
         self.poly_order_slider, self.poly_order_input = add_slider_field(
@@ -514,7 +535,6 @@ class ControlPanel(QWidget):
         self.r_step_input.setValidator(float_validator)
         self.lambda_fq_input.setValidator(float_validator)
 
-        self.pdf_qstep_input.setValidator(float_validator)
 
         self.r_min_input.editingFinished.connect(self.on_gr_inputs_finished)
         self.r_max_input.editingFinished.connect(self.on_gr_inputs_finished)
@@ -526,7 +546,6 @@ class ControlPanel(QWidget):
 
         def reset_fields():
             self.bg_slider.setValue(int(round(0.00000 * 100000)))
-            self.pdf_qstep_input.setText("0.01")
             self.qmax_slider.setValue(int(round(30.0 * 1000)))
             self.qmin_slider.setValue(int(round(0.0 * 1000)))
             self.poly_order_slider.setValue(int(round(9.000 * 1000)))
@@ -547,11 +566,44 @@ class ControlPanel(QWidget):
         main_layout.addWidget(form_widget)
         main_layout.addStretch(1)  # 공간 채우기
 
+        # EZPDF logo in the bottom-right corner of the tab (same placement on all
+        # tabs). The PDF tab has the "Open in New Graphs" checkbox row at the very
+        # bottom, so the logo goes at the right end of that row.
+        # [KR] 탭의 오른쪽 아래 모서리에 EZPDF 로고 표시 (모든 탭 같은 위치).
+        #      PDF 탭은 맨 아래에 "Open in New Graphs" 체크박스 줄이 있으므로
+        #      로고를 그 줄의 오른쪽 끝에 넣는다.
+        try:
+            from PySide6.QtGui import QPixmap, QGuiApplication
+            from model.elem_data import resource_path
+            _logo_file = resource_path(os.path.join("ui", "icons", "EZPDF_logo_wordmark.png"))
+            if os.path.exists(_logo_file):
+                _logo_width = 120  # on-screen width in logical pixels
+                _screen = QGuiApplication.primaryScreen()
+                _dpr = _screen.devicePixelRatio() if _screen else 1.0
+                _pix = QPixmap(_logo_file).scaledToWidth(
+                    int(_logo_width * _dpr), Qt.TransformationMode.SmoothTransformation)
+                _pix.setDevicePixelRatio(_dpr)
+                self.pdf_logo_label = QLabel()
+                self.pdf_logo_label.setPixmap(_pix)
+                # Placed at the right end of the bottom checkbox row (see below).
+                # [KR] 아래쪽 체크박스 줄의 오른쪽 끝에 배치한다(아래 참고).
+        except Exception:
+            pass
+
         # ⬇⬇⬇ [체크박스 위치 수정: 왼쪽 정렬] ⬇⬇⬇
         cb_layout = QHBoxLayout()
         cb_layout.addWidget(self.new_window_checkbox)  # 체크박스를 먼저 추가
         cb_layout.addStretch()  # 뒤에 여백(Stretch) 추가
         # ⬆⬆⬆ [수정 완료] ⬆⬆⬆
+
+        # EZPDF logo at the right end of this bottom row -> bottom-right corner,
+        # the same spot as on the other tabs. The checkbox is kept at the bottom
+        # of the (now taller) row so it stays where it was.
+        # [KR] 이 맨 아래 줄 오른쪽 끝에 로고 → 다른 탭과 같은 오른쪽 아래 모서리.
+        #      줄이 로고 높이만큼 높아지므로 체크박스는 아래에 붙여 원래 위치를 유지.
+        if getattr(self, "pdf_logo_label", None) is not None:
+            cb_layout.addWidget(self.pdf_logo_label)
+            cb_layout.setAlignment(self.new_window_checkbox, Qt.AlignmentFlag.AlignBottom)
 
         # 메인 레이아웃 최하단에 추가
         main_layout.addLayout(cb_layout)
@@ -579,6 +631,13 @@ class ControlPanel(QWidget):
         self.cal_qmax_slider.valueChanged.connect(self.send_update)
         self.cal_qmin_slider.valueChanged.connect(self.send_update)
 
+        # q_step for the .xyz calculation. Without this the calculation fell
+        # back to a hard-coded 0.05, so the saved I(q)/S(q)/F(q) always had a
+        # 0.05 q-spacing regardless of what the user wanted.
+        self.cal_qstep_input = QLineEdit()
+        self.cal_qstep_input.setAlignment(Qt.AlignmentFlag.AlignRight)
+        cal_layout.addRow("q_step:", self.cal_qstep_input)
+
         self.cal_r_min_input = QLineEdit()
         cal_layout.addRow("r_min:", self.cal_r_min_input)
 
@@ -594,23 +653,32 @@ class ControlPanel(QWidget):
         self.cal_r_min_input.setValidator(float_validator)
         self.cal_r_max_input.setValidator(float_validator)
         self.cal_r_step_input.setValidator(float_validator)
+        self.cal_qstep_input.setValidator(float_validator)
 
         self.cal_r_min_input.setText("0")
         self.cal_r_max_input.setText("30")
         self.cal_r_step_input.setText("0.01")
+        self.cal_qstep_input.setText("0.01")
 
         self.cal_r_min_input.editingFinished.connect(self.on_gr_inputs_finished)
         self.cal_r_max_input.editingFinished.connect(self.on_gr_inputs_finished)
         self.cal_r_step_input.editingFinished.connect(self.on_gr_inputs_finished)
+        # q_step changes the q-axis, so a full recalculation is needed.
+        self.cal_qstep_input.editingFinished.connect(self.send_update)
 
         reset_btn = QPushButton("Reset")
 
         def reset_fields():
             self.cal_qmax_slider.setValue(int(round(30.0 * 1000)))
             self.cal_qmin_slider.setValue(int(round(0.0 * 1000)))
+            self.cal_qstep_input.setText("0.01")
             self.cal_r_min_input.setText("0")
             self.cal_r_max_input.setText("30")
             self.cal_r_step_input.setText("0.01")
+            # Slider setValue only recomputes when the value actually changes,
+            # so force an update here — otherwise resetting q_step/r_step alone
+            # would leave the plot showing the previous calculation.
+            self.send_update()
 
         reset_btn.clicked.connect(reset_fields)
         reset_btn.setFixedWidth(80)
@@ -618,6 +686,40 @@ class ControlPanel(QWidget):
         reset_layout.addStretch()
         reset_layout.addWidget(reset_btn)
         cal_layout.addRow("", reset_layout)
+
+        # EZPDF logo in the bottom-right corner of the CAL tab (same placement
+        # on all tabs). This tab is a single form layout, so the logo sits at the
+        # bottom of a container row that takes the leftover height; its right
+        # edge lines up with the buttons.
+        # [KR] CAL 탭의 오른쪽 아래 모서리에 EZPDF 로고 표시 (모든 탭 같은
+        #      위치). 이 탭은 폼 레이아웃 하나로 되어 있어서, 남는 높이를
+        #      차지하는 상자의 바닥에 로고를 두고 오른쪽 끝을 버튼에 맞춘다.
+        try:
+            from PySide6.QtGui import QPixmap, QGuiApplication
+            from PySide6.QtWidgets import QSizePolicy
+            from model.elem_data import resource_path
+            _logo_file = resource_path(os.path.join("ui", "icons", "EZPDF_logo_wordmark.png"))
+            if os.path.exists(_logo_file):
+                _logo_width = 120  # on-screen width in logical pixels
+                _screen = QGuiApplication.primaryScreen()
+                _dpr = _screen.devicePixelRatio() if _screen else 1.0
+                _pix = QPixmap(_logo_file).scaledToWidth(
+                    int(_logo_width * _dpr), Qt.TransformationMode.SmoothTransformation)
+                _pix.setDevicePixelRatio(_dpr)
+                self.cal_logo_label = QLabel()
+                self.cal_logo_label.setPixmap(_pix)
+                _logo_box = QWidget()
+                _logo_box.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+                _logo_v = QVBoxLayout(_logo_box)
+                _logo_v.setContentsMargins(0, 0, 0, 0)
+                _logo_v.addStretch(1)
+                _logo_row = QHBoxLayout()
+                _logo_row.addStretch()
+                _logo_row.addWidget(self.cal_logo_label)
+                _logo_v.addLayout(_logo_row)
+                cal_layout.addRow(_logo_box)
+        except Exception:
+            pass
 
         return cal_tab
 
@@ -736,12 +838,45 @@ class ControlPanel(QWidget):
         buttons_layout.addWidget(reset_btn)
         compton_layout.addRow("", buttons_layout)
 
+        # EZPDF logo in the bottom-right corner of the Compton tab (same placement
+        # on all tabs). This tab is a single form layout, so the logo sits at the
+        # bottom of a container row that takes the leftover height; its right
+        # edge lines up with the buttons.
+        # [KR] Compton 탭의 오른쪽 아래 모서리에 EZPDF 로고 표시 (모든 탭 같은
+        #      위치). 이 탭은 폼 레이아웃 하나로 되어 있어서, 남는 높이를
+        #      차지하는 상자의 바닥에 로고를 두고 오른쪽 끝을 버튼에 맞춘다.
+        try:
+            from PySide6.QtGui import QPixmap, QGuiApplication
+            from PySide6.QtWidgets import QSizePolicy
+            from model.elem_data import resource_path
+            _logo_file = resource_path(os.path.join("ui", "icons", "EZPDF_logo_wordmark.png"))
+            if os.path.exists(_logo_file):
+                _logo_width = 120  # on-screen width in logical pixels
+                _screen = QGuiApplication.primaryScreen()
+                _dpr = _screen.devicePixelRatio() if _screen else 1.0
+                _pix = QPixmap(_logo_file).scaledToWidth(
+                    int(_logo_width * _dpr), Qt.TransformationMode.SmoothTransformation)
+                _pix.setDevicePixelRatio(_dpr)
+                self.compton_logo_label = QLabel()
+                self.compton_logo_label.setPixmap(_pix)
+                _logo_box = QWidget()
+                _logo_box.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+                _logo_v = QVBoxLayout(_logo_box)
+                _logo_v.setContentsMargins(0, 0, 0, 0)
+                _logo_v.addStretch(1)
+                _logo_row = QHBoxLayout()
+                _logo_row.addStretch()
+                _logo_row.addWidget(self.compton_logo_label)
+                _logo_v.addLayout(_logo_row)
+                compton_layout.addRow(_logo_box)
+        except Exception:
+            pass
+
         return compton_tab
 
     def get_pdf_parameters(self):
         return {
             "bg": self.bg_slider.value() / 100000,
-            "qstep": self.pdf_qstep_input.text(),
             "qmax": self.qmax_slider.value() / 1000,
             "qmin": self.qmin_slider.value() / 1000,
             "poly_order": self.poly_order_input.text(),
@@ -987,6 +1122,7 @@ class ControlPanel(QWidget):
             return {
                 "qmax": self.cal_qmax_input.text(),
                 "qmin": self.cal_qmin_input.text(),
+                "qstep": self.cal_qstep_input.text(),
                 "rmin": self.cal_r_min_input.text(),
                 "rmax": self.cal_r_max_input.text(),
                 "rstep": self.cal_r_step_input.text(),
@@ -1006,6 +1142,14 @@ class ControlPanel(QWidget):
         }
 
     def send_update(self):
+        # Debounced: coalesce rapid slider changes into a single recompute.
+        try:
+            self._update_timer.start(self._update_delay_ms)
+        except Exception:
+            # Timer not ready (very early call) — run immediately.
+            self._do_send_update()
+
+    def _do_send_update(self):
         windows = getattr(self.main_window, "plot_windows", [])
         active_windows = [w for w in windows if w.isVisible()]
         self.main_window.plot_windows = active_windows
@@ -1098,7 +1242,6 @@ class ControlPanel(QWidget):
         bg = float(params["bg"]) if "bg" in params else current_bg
         self.bg_slider.setValue(int(round(bg * 100000)))
 
-        self.pdf_qstep_input.setText(str(params["qstep"]) if "qstep" in params else self.pdf_qstep_input.text())
 
         current_qmax = self.qmax_slider.value() / 1000.0
         qmax = float(params["qmax"]) if "qmax" in params else current_qmax
@@ -1129,9 +1272,12 @@ class ControlPanel(QWidget):
         qmin = float(params.get("qmin", 0.1))
         self.cal_qmin_slider.setValue(int(round(qmin * 1000)))
 
+        self.cal_qstep_input.setText(str(params.get("qstep", "0.01")))
         self.cal_r_min_input.setText(params.get("rmin", "0"))
         self.cal_r_max_input.setText(params.get("rmax", "30"))
-        self.r_step_input.setText(params.get("rstep", "0.01"))
+        # NOTE: previously this wrote to self.r_step_input (the PDF tab's field)
+        # by mistake, so a loaded .xyz config never set the CAL tab's r_step.
+        self.cal_r_step_input.setText(params.get("rstep", "0.01"))
 
     def set_compton_parameters(self, params: dict):
         try:
@@ -1151,9 +1297,13 @@ class ControlPanel(QWidget):
             self.main_window.plot_window.enable_graphs(enable_fq=enable_fq, enable_gr=enable_gr)
 
     def on_fq_inputs_finished(self):
+        # Only re-plot. Do NOT force-enable the F(q)/G(r) panels here: changing a
+        # smoothing parameter (lambda/order) should not resurrect panels the
+        # user has hidden, and enabling them after send_update() would also undo
+        # the zoom that update_current_graph just preserved.
         self.send_update()
-        self.enable_graphs(enable_fq=True, enable_gr=True)
 
     def on_gr_inputs_finished(self):
+        # Only re-plot; do not force-enable the G(r) panel (respect the user's
+        # panel visibility). Zoom is preserved by update_current_graph.
         self.send_update()
-        self.enable_graphs(enable_gr=True)

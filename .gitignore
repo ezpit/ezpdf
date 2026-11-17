@@ -222,3 +222,20 @@ EZPDF_GUI_exe_version/
 # from build in revision control
 _version.py
 _build_date.py
+
+
+WH_smooth/build-env/
+WH_smooth/WH_smooth_v1.0.2-win64/
+WH_smooth/WH_smooth_v1.0.2-win64.zip
+WH_smooth/build/
+WH_smooth/dist/
+__pycache__/
+
+
+# build outputs / release packages
+*.zip
+*.exe
+build/
+dist/
+WH_smooth/WH_smooth_*-win64/
+EZPDF_GUI_version/EZPDF_*-win64/

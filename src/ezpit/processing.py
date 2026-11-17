@@ -625,6 +625,20 @@ def apply_lorch_function(Q: FloatVector, FQ: FloatVector) -> FloatVector:
     lorch_values = lorch_function_sinc(Q, Q_max)
     return FQ * lorch_values
 
+def lorch_window(q, qmax):
+    """Lorch modification function M(q) = sin(pi*q/qmax) / (pi*q/qmax).
+
+    M(0) = 1 and M(qmax) = 0. Used to damp the finite-q_max truncation before
+    the F(q) -> G(r) sine transform, reducing termination ripple.
+    """
+    q = np.asarray(q, dtype=float)
+    if qmax <= 0:
+        return np.ones_like(q)
+    x = np.pi * q / qmax
+    m = np.ones_like(x)
+    nz = x != 0.0
+    m[nz] = np.sin(x[nz]) / x[nz]
+    return m
 
 def cal_Iq(
     atom_indices: list[int] | IntVector,
@@ -1436,22 +1450,24 @@ def cal_expGr_fft(
         pad_Fq = np.zeros(num_point)
 
         if q[0] > 0.0:
-            if low_q_mode == "anchor":
-                # [EN] Low-q extrapolation with F(q=0) = 0 enforced (anchor method).
-                #      F(q) = q*(S(q)-1), so F(0) = 0 by definition regardless of S(0).
-                #      A straight line from (0, 0) to (q[0], Fq[0]) fills the gap,
-                #      which is mathematically consistent with the definition of F(q).
-                # [KR] anchor 방식: F(0)=0을 강제하고 (qmin, F(qmin))까지 직선 연결.
-                q_low = np.arange(num_point) * qstep_calc
-                pad_Fq[:num_point] = (Fq[0] / q[0]) * q_low
-            else:
-                # [EN] Linear extrapolation (legacy method via scipy interp1d).
-                #      Uses the slope of the first two data points to extrapolate down to q=0.
-                #      May result in F(0) ≠ 0 (not physically guaranteed).
-                # [KR] Linear 외삽 (구버전, scipy interp1d 사용).
-                #      처음 두 점의 기울기로 q=0까지 외삽. F(0) ≠ 0 가능.
-                f_inter = interpolate.interp1d(q, Fq, fill_value="extrapolate", kind=extrapolate_type)
-                pad_Fq[:num_point] = f_inter(np.arange(num_point) * qstep_calc)
+            # if low_q_mode == "anchor":
+            #     # [EN] Low-q extrapolation with F(q=0) = 0 enforced (anchor method).
+            #     #      F(q) = q*(S(q)-1), so F(0) = 0 by definition regardless of S(0).
+            #     #      A straight line from (0, 0) to (q[0], Fq[0]) fills the gap,
+            #     #      which is mathematically consistent with the definition of F(q).
+            #     # [KR] anchor 방식: F(0)=0을 강제하고 (qmin, F(qmin))까지 직선 연결.
+            #     q_low = np.arange(num_point) * qstep_calc
+            #     pad_Fq[:num_point] = (Fq[0] / q[0]) * q_low
+            # else:
+            #     # [EN] Linear extrapolation (legacy method via scipy interp1d).
+            #     #      Uses the slope of the first two data points to extrapolate down to q=0.
+            #     #      May result in F(0) ≠ 0 (not physically guaranteed).
+            #     # [KR] Linear 외삽 (구버전, scipy interp1d 사용).
+            #     #      처음 두 점의 기울기로 q=0까지 외삽. F(0) ≠ 0 가능.
+            #     f_inter = interpolate.interp1d(q, Fq, fill_value="extrapolate",
+            #                                    kind=extrapolate_type)
+            #     pad_Fq[:num_point] = f_inter(np.arange(num_point) * qstep_calc)
+            pad_Fq[:num_point] = 0.0
 
         # [EN] Save the three segments for visualization (BEFORE Nyquist interpolation)
         # [KR] Nyquist 보간 전 3구간을 시각화용으로 저장
@@ -1567,14 +1583,16 @@ def cal_expGr_fft_from_Fq(
     pad_Fq = np.zeros(num_point)
 
     if q[0] > 0.0:
-        if low_q_mode == "anchor":
-            # Low-q extrapolation with F(q=0) = 0 enforced (anchor method).
-            q_low = np.arange(num_point) * qstep
-            pad_Fq[:num_point] = (Fq[0] / q[0]) * q_low
-        else:
-            # Linear extrapolation (legacy method via scipy interp1d).
-            f_inter = interpolate.interp1d(q, Fq, fill_value="extrapolate", kind=extrapolate_type)
-            pad_Fq[:num_point] = f_inter(np.arange(num_point) * qstep)
+        # if low_q_mode == "anchor":
+        #     # Low-q extrapolation with F(q=0) = 0 enforced (anchor method).
+        #     q_low = np.arange(num_point) * qstep
+        #     pad_Fq[:num_point] = (Fq[0] / q[0]) * q_low
+        # else:
+        #     # Linear extrapolation (legacy method via scipy interp1d).
+        #     f_inter = interpolate.interp1d(q, Fq, fill_value="extrapolate",
+        #                                    kind=extrapolate_type)
+        #     pad_Fq[:num_point] = f_inter(np.arange(num_point) * qstep)
+        pad_Fq[:num_point] = 0.0
 
     Fq_vals = np.append(pad_Fq, Fq)
     r_list = np.arange(rmin, rmax + rstep, rstep)

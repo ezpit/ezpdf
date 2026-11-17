@@ -44,7 +44,8 @@ try:
 except ImportError:
     QSvgGenerator = None
 
-from .plotter import make_pen, plot_curve, setup_plot, update_visibility
+from .plotter import make_pen, setup_plot, plot_curve, update_visibility
+from ezpit.processing import lorch_window
 from .save_menu import SaveMenu
 
 LABEL_PT = 9
@@ -210,12 +211,28 @@ class PlotWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.left_button_pan_enabled = True
-        pg.setConfigOption("leftButtonPan", True)
+        pg.setConfigOption('leftButtonPan', True)
+        # Smoother, sharper curves on screen (and higher-quality raster export).
+        pg.setConfigOptions(antialias=True)
 
         # Default to Light Mode
         self.setStyleSheet(TEAL_STYLE)
 
         self.setWindowTitle("EZPDF Plot")
+        # Window icon: same EZPDF icon as the main window (EZPDF.ico first,
+        # then the PNG logo).
+        # [KR] 메인 창과 같은 EZPDF 아이콘 (EZPDF.ico 우선, 없으면 PNG).
+        try:
+            import os as _os
+            from PySide6.QtGui import QIcon as _QIcon
+            from model.elem_data import resource_path as _resource_path
+            for _icon_name in ("EZPDF.ico", "EZPDF_logo_2x_transparent.png"):
+                _icon_path = _resource_path(_os.path.join("ui", "icons", _icon_name))
+                if _os.path.exists(_icon_path):
+                    self.setWindowIcon(_QIcon(_icon_path))
+                    break
+        except Exception:
+            pass
         self.resize(900, 700)
 
         # Stores the QTreeWidgetItem(s) associated with this window
@@ -303,6 +320,39 @@ class PlotWindow(QMainWindow):
         self.plot_layout.setSpacing(0)
 
         self.plots = []
+        # Per-panel flag: True once the user manually zooms/pans that panel.
+        # Parameter changes then keep that panel's view; unzoomed panels
+        # auto-scale. Reset on fresh load and on R (reset zoom).
+        self._user_zoomed = [False, False, False, False]
+
+        def _fixed_tick_strings(values, scale, spacing):
+            # 2 decimals, right-aligned to a constant width so every panel's
+            # y labels occupy the same space and the plot areas line up.
+            out = []
+            for v in values:
+                out.append(("%.2f" % (v * scale)).rjust(8))
+            return out
+
+        def _make_iq_ticks(axis):
+            # I(q) can span a huge range. In linear mode use scientific notation
+            # for large/small values (bounded width, never gets cut off) and
+            # plain numbers otherwise. In log mode defer to pyqtgraph's default
+            # (nice 10^n formatting).
+            def _ticks(values, scale, spacing):
+                if getattr(axis, 'logMode', False):
+                    return pg.AxisItem.tickStrings(axis, values, scale, spacing)
+                out = []
+                for v in values:
+                    val = v * scale
+                    av = abs(val)
+                    if av != 0 and (av >= 1e4 or av < 1e-2):
+                        s = "%.1e" % val
+                    else:
+                        s = "%.2f" % val
+                    out.append(s.rjust(8))
+                return out
+            return _ticks
+
         for _ in range(4):
             pw = pg.PlotWidget()
             pw.setBackground("w")
@@ -311,6 +361,28 @@ class PlotWindow(QMainWindow):
             vb = pw.getViewBox()
             vb.setLimits(xMin=0)
             vb.setDefaultPadding(0.0)
+
+            idx = len(self.plots)
+
+            # Left (y) axis: constant width + fixed-width labels so all panels'
+            # plot areas start at the same x (same q position lines up). No ×10ⁿ
+            # SI prefix; I(q) uses scientific notation for large linear values.
+            try:
+                left_axis = pw.getAxis('left')
+                left_axis.setWidth(72)
+                left_axis.enableAutoSIPrefix(False)
+                if idx == 0:
+                    left_axis.tickStrings = _make_iq_ticks(left_axis)
+                else:
+                    left_axis.tickStrings = _fixed_tick_strings
+            except Exception:
+                pass
+
+            try:
+                vb.sigRangeChangedManually.connect(
+                    lambda _mask=None, i=idx: self._mark_user_zoomed(i))
+            except Exception:
+                pass
 
             self.plot_layout.addWidget(pw, 1)
             self.plots.append(pw)
@@ -330,6 +402,12 @@ class PlotWindow(QMainWindow):
         self.sq_mean_fi_curve = None
         self.fq_smoothed_curve = None
         self.gr_smoothed_curve = None
+        self.gr_lorch_curve = None
+        self.gr_smoothed_lorch_curve = None
+        self.fq_lorch_curve = None
+        self.fq_smoothed_lorch_curve = None
+        self.fq_main_curve = None
+        self.gr_main_curve = None
 
         self.xs = None
         self.ys = None
@@ -339,6 +417,8 @@ class PlotWindow(QMainWindow):
         self.sq_polynomial_data = None
         self.fq_smoothed_data = None
         self.gr_smoothed_data = None
+        self.gr_lorch_data = None
+        self.gr_smoothed_lorch_data = None
         self.mean_sq_fi = None
         self.sq_mean_fi = None
 
@@ -535,6 +615,42 @@ class PlotWindow(QMainWindow):
         fq_widget_action.setDefaultWidget(fq_widget)
         fq_menu.addAction(fq_widget_action)
 
+        # G(r) Menu -- Lorch-modified variants (experimental data only).
+        # These overlay curves are precomputed; toggling only shows/hides.
+        gr_menu = self.bottom_menu.addMenu("G(r)")
+        gr_widget = QWidget()
+        gr_layout = QVBoxLayout()
+        gr_layout.setContentsMargins(10, 10, 10, 10)
+        gr_widget.setLayout(gr_layout)
+
+        # Lorch controls apply to BOTH F(q) and G(r) panels. The "Smoothed"
+        # axis reuses the existing "Smoothed F(q)" checkbox in the F(q) menu.
+        _lorch_cb_style = (
+            "QCheckBox::indicator { width: 12px; height: 12px; border-radius: 6px; "
+            "border: 1px solid #777; background: #fff; } "
+            "QCheckBox::indicator:checked { background: #FF8C00; border: 1px solid #FF8C00; }")
+        self.apply_lorch_checkbox = QCheckBox("Apply Lorch")
+        self.apply_lorch_checkbox.setStyleSheet(_lorch_cb_style)
+        self.apply_lorch_checkbox.setChecked(False)
+        self.apply_lorch_checkbox.stateChanged.connect(lambda: self._on_lorch_toggle(self.apply_lorch_checkbox))
+        gr_layout.addWidget(self.apply_lorch_checkbox)
+
+        self.compare_lorch_checkbox = QCheckBox("Compare (Lorch on/off)")
+        self.compare_lorch_checkbox.setStyleSheet(_lorch_cb_style)
+        self.compare_lorch_checkbox.setChecked(False)
+        self.compare_lorch_checkbox.stateChanged.connect(lambda: self._on_lorch_toggle(self.compare_lorch_checkbox))
+        gr_layout.addWidget(self.compare_lorch_checkbox)
+
+        self.compare_all_checkbox = QCheckBox("Compare all")
+        self.compare_all_checkbox.setStyleSheet(_lorch_cb_style)
+        self.compare_all_checkbox.setChecked(False)
+        self.compare_all_checkbox.stateChanged.connect(lambda: self._on_lorch_toggle(self.compare_all_checkbox))
+        gr_layout.addWidget(self.compare_all_checkbox)
+
+        gr_widget_action = QWidgetAction(self)
+        gr_widget_action.setDefaultWidget(gr_widget)
+        gr_menu.addAction(gr_widget_action)
+
         # Indicator Colors
         base_indicator_style = """
             QCheckBox::indicator {
@@ -604,6 +720,12 @@ class PlotWindow(QMainWindow):
         self.sq_mean_fi_curve = None
         self.fq_smoothed_curve = None
         self.gr_smoothed_curve = None
+        self.gr_lorch_curve = None
+        self.gr_smoothed_lorch_curve = None
+        self.fq_lorch_curve = None
+        self.fq_smoothed_lorch_curve = None
+        self.fq_main_curve = None
+        self.gr_main_curve = None
 
         self.raw_iq = None
         self.background_data = None
@@ -613,6 +735,10 @@ class PlotWindow(QMainWindow):
         self.mean_sq_fi = None
         self.sq_mean_fi = None
         self.gr_smoothed_data = None
+        self.gr_lorch_data = None
+        self.gr_smoothed_lorch_data = None
+        self.fq_lorch_data = None
+        self.fq_smoothed_lorch_data = None
 
     def _align_pair(self, x, y):
         try:
@@ -632,23 +758,10 @@ class PlotWindow(QMainWindow):
         except Exception:
             return y
 
-    def plot_data(
-        self,
-        xs,
-        ys,
-        bkg_x,
-        bkg_y,
-        raw_x,
-        raw_y,
-        list_Sq=None,
-        Fq_smoothed=None,
-        mean_sq_fi=None,
-        sq_mean_fi=None,
-        r_smoothed=None,
-        G_smoothed=None,
-        title="",
-        bring_front=True,
-    ):
+    def plot_data(self, xs, ys, bkg_x, bkg_y, raw_x, raw_y,
+                  list_Sq=None, Fq_smoothed=None, mean_sq_fi=None, sq_mean_fi=None,
+                  r_smoothed=None, G_smoothed=None, title="", bring_front=True,
+                  gr_lorch=None, gr_smoothed_lorch=None, **_kwargs):
         self._reset_intermediates()
         self.is_compton = False
 
@@ -672,6 +785,9 @@ class PlotWindow(QMainWindow):
         if xs is not None and len(xs) > 2 and Fq_smoothed is not None:
             Fq_smoothed = self._align_with_x(xs[2], Fq_smoothed)
         r_smoothed, G_smoothed = self._align_pair(r_smoothed, G_smoothed)
+        _r_main = xs[3] if (xs is not None and len(xs) > 3) else None
+        _r_lorch, gr_lorch = self._align_pair(_r_main, gr_lorch)
+        _r_sm_lorch, gr_smoothed_lorch = self._align_pair(r_smoothed, gr_smoothed_lorch)
 
         # Only bring the window to the front when a new file is opened here.
         # During a parameter change every open plot window is replotted; raising
@@ -697,6 +813,8 @@ class PlotWindow(QMainWindow):
         self.mean_sq_fi = mean_sq_fi
         self.sq_mean_fi = sq_mean_fi
         self.gr_smoothed_data = [r_smoothed, G_smoothed]
+        self.gr_lorch_data = [_r_lorch, gr_lorch]
+        self.gr_smoothed_lorch_data = [_r_sm_lorch, gr_smoothed_lorch]
 
         x_labels = ["q(1/Å)", "q(1/Å)", "q(1/Å)", "r(Å)"]
         y_labels = ["I(q)", "S(q)", "F(q)", "G(Å⁻²)"]
@@ -706,6 +824,8 @@ class PlotWindow(QMainWindow):
         pen_raw = make_pen((0, 0, 0))
         pen_f2 = make_pen((0, 150, 0))
         pen_f_avg2 = make_pen((128, 0, 128))
+        pen_lorch = make_pen((255, 140, 0))      # raw + Lorch (orange)
+        pen_lorch2 = make_pen((0, 150, 136))     # smoothed + Lorch (teal)
 
         is_dark = False
         app_instance = QApplication.instance()
@@ -728,7 +848,11 @@ class PlotWindow(QMainWindow):
                     pi.getAxis(axis).setPen("#E0E0E0")
                     pi.getAxis(axis).setTextPen("#E0E0E0")
 
-            self.plots[i].plot(xs[i], ys[i], pen=pen_main)
+            _main_curve = self.plots[i].plot(xs[i], ys[i], pen=pen_main)
+            if i == 2:
+                self.fq_main_curve = _main_curve
+            elif i == 3:
+                self.gr_main_curve = _main_curve
 
             if i == 0:
                 self.plots[i].setLogMode(y=self.log_checkbox.isChecked())
@@ -776,23 +900,24 @@ class PlotWindow(QMainWindow):
                     visible=self.sq_mean_fi_checkbox.isChecked(),
                 )
             if i == 2:
-                self.fq_smoothed_curve = plot_curve(
-                    self.plots[i],
-                    xs[2],
-                    Fq_smoothed,
-                    pen_raw,
-                    visible=self.smoothed_fq_checkbox.isChecked(),
-                )
+                self.fq_smoothed_curve = plot_curve(self.plots[i], xs[2], Fq_smoothed, pen_raw,
+                                                    visible=False)
+                # F(q).Lorch = F(q) * M(q); derived here (no FFT needed).
+                _qf = np.asarray(xs[2], dtype=float) if (xs[2] is not None and len(xs[2]) > 0) else None
+                _Mf = lorch_window(_qf, float(_qf[-1])) if _qf is not None else None
+                _fq_l = (np.asarray(ys[2], dtype=float) * _Mf) if (_Mf is not None and ys[2] is not None and len(ys[2]) == len(_Mf)) else None
+                _fq_sm_l = (np.asarray(Fq_smoothed, dtype=float) * _Mf) if (_Mf is not None and Fq_smoothed is not None and len(Fq_smoothed) == len(_Mf)) else None
+                self.fq_lorch_data = [xs[2], _fq_l]
+                self.fq_smoothed_lorch_data = [xs[2], _fq_sm_l]
+                self.fq_lorch_curve = plot_curve(self.plots[i], xs[2], _fq_l, pen_lorch, visible=False)
+                self.fq_smoothed_lorch_curve = plot_curve(self.plots[i], xs[2], _fq_sm_l, pen_lorch2, visible=False)
             if i == 3:
-                self.gr_smoothed_curve = plot_curve(
-                    self.plots[i],
-                    r_smoothed,
-                    G_smoothed,
-                    pen_raw,
-                    visible=self.smoothed_fq_checkbox.isChecked(),
-                )
+                self.gr_smoothed_curve = plot_curve(self.plots[i], r_smoothed, G_smoothed, pen_raw, visible=False)
+                self.gr_lorch_curve = plot_curve(self.plots[i], _r_lorch, gr_lorch, pen_lorch, visible=False)
+                self.gr_smoothed_lorch_curve = plot_curve(self.plots[i], _r_sm_lorch, gr_smoothed_lorch, pen_lorch2, visible=False)
 
         self.update_visibility()
+        self._apply_lorch_view()
         for i in range(4):
             self._autorange_and_fix_x0(i)
 
@@ -1081,55 +1206,165 @@ class PlotWindow(QMainWindow):
         update_visibility(self.plot_layout, self.plot_checkboxes, self.plots, self.plot_container)
 
     def toggle_log_scale(self):
+        # Preserve the current view across the linear/log switch so zooming in
+        # and toggling the scale does not reset to the full auto-range.
+        keep_view = self._user_zoomed[0] or self._is_zoomed(0)
+        vb = self.plots[0].getViewBox()
+        try:
+            (x0, x1), (y0, y1) = vb.viewRange()
+        except Exception:
+            keep_view = False
         self.plots[0].setLogMode(y=self.log_checkbox.isChecked())
         self.enable_graphs(enable_iq=True)
-        self._autorange_and_fix_x0(0)
+        if keep_view:
+            # y is in log units when log mode is on; keep x, refit y to the
+            # visible data so the zoomed q-window stays put.
+            try:
+                vb.enableAutoRange(x=False, y=True)
+                self.plots[0].setXRange(float(x0), float(x1), padding=0)
+            except Exception:
+                pass
+        else:
+            self._autorange_and_fix_x0(0)
 
     def show_background_data(self):
         if self.bkg_curve:
             self.bkg_curve.setVisible(self.background_checkbox.isChecked())
             self.enable_graphs(enable_iq=True)
-            self._autorange_and_fix_x0(0)
+            if not (self._user_zoomed[0] or self._is_zoomed(0)):
+                try:
+                    self.plots[0].getViewBox().enableAutoRange(x=True, y=True)
+                except Exception:
+                    pass
+                self._autorange_and_fix_x0(0)
 
     def show_original_data(self):
         if self.raw_curve:
             self.raw_curve.setVisible(self.original_checkbox.isChecked())
             self.enable_graphs(enable_iq=True)
-            self._autorange_and_fix_x0(0)
+            if not (self._user_zoomed[0] or self._is_zoomed(0)):
+                try:
+                    self.plots[0].getViewBox().enableAutoRange(x=True, y=True)
+                except Exception:
+                    pass
+                self._autorange_and_fix_x0(0)
 
     def toggle_original_sq(self):
         if self.sq_curve_original:
             self.sq_curve_original.setVisible(self.original_sq_checkbox.isChecked())
             self.enable_graphs(enable_sq=True)
-            self._autorange_and_fix_x0(1)
+            if not self._user_zoomed[1]:
+                self._autorange_and_fix_x0(1)
 
     def toggle_polynomial_sq(self):
         if self.sq_curve_polynomial:
             self.sq_curve_polynomial.setVisible(self.polynomial_sq_checkbox.isChecked())
             self.enable_graphs(enable_sq=True)
-            self._autorange_and_fix_x0(1)
+            if not self._user_zoomed[1]:
+                self._autorange_and_fix_x0(1)
 
     def toggle_mean_sq_fi(self):
         if self.mean_sq_fi_curve:
             self.mean_sq_fi_curve.setVisible(self.mean_sq_fi_checkbox.isChecked())
             self.enable_graphs(enable_sq=True)
-            self._autorange_and_fix_x0(1)
+            if not self._user_zoomed[1]:
+                self._autorange_and_fix_x0(1)
 
     def toggle_sq_mean_fi(self):
         if self.sq_mean_fi_curve:
             self.sq_mean_fi_curve.setVisible(self.sq_mean_fi_checkbox.isChecked())
             self.enable_graphs(enable_sq=True)
-            self._autorange_and_fix_x0(1)
+            if not self._user_zoomed[1]:
+                self._autorange_and_fix_x0(1)
 
     def toggle_smoothed_fq(self):
-        checked = self.smoothed_fq_checkbox.isChecked()
-        if self.fq_smoothed_curve:
-            self.fq_smoothed_curve.setVisible(checked)
-            self.enable_graphs(enable_fq=True)
+        # "Smoothed" is now a state axis feeding _apply_lorch_view (it selects
+        # the smoothed curves as the base instead of overlaying on raw).
+        self._apply_lorch_view()
+
+    def _on_lorch_toggle(self, sender):
+        # The three Lorch modes are mutually exclusive: turning one on turns
+        # the others off; turning all off returns to the raw view.
+        if sender.isChecked():
+            for cb in (self.apply_lorch_checkbox, self.compare_lorch_checkbox,
+                       self.compare_all_checkbox):
+                if cb is not sender and cb.isChecked():
+                    cb.blockSignals(True)
+                    cb.setChecked(False)
+                    cb.blockSignals(False)
+        self._apply_lorch_view()
+
+    def _apply_lorch_view(self):
+        """Show/hide the F(q) and G(r) curves per the Lorch toggles.
+
+        Axes: Smoothed (smoothed_fq_checkbox), Apply Lorch, Compare, Compare all.
+        The same rule drives both the F(q) and G(r) panels.
+        """
+        # A Compton plot has only an I(q)-type curve; the Lorch/Smoothed toggles
+        # don't apply, so do nothing here. Otherwise this would force-enable the
+        # (empty) F(q) and G(r) panels.
+        if getattr(self, "is_compton", False):
+            return
+        # "Smoothed" only has an effect when smoothed curves actually exist
+        # (they don't for the xyz/CAL path). Otherwise a checked "Smoothed F(q)"
+        # would route Apply Lorch / Compare to non-existent smoothed variants,
+        # making those toggles look broken for xyz.
+        sm_available = (getattr(self, "fq_smoothed_curve", None) is not None
+                        or getattr(self, "gr_smoothed_curve", None) is not None)
+        sm = bool(self.smoothed_fq_checkbox.isChecked()) and sm_available
+        lorch = bool(getattr(self, "apply_lorch_checkbox", None) and self.apply_lorch_checkbox.isChecked())
+        comp = bool(getattr(self, "compare_lorch_checkbox", None) and self.compare_lorch_checkbox.isChecked())
+        compall = bool(getattr(self, "compare_all_checkbox", None) and self.compare_all_checkbox.isChecked())
+
+        show = {"raw": False, "raw_l": False, "sm": False, "sm_l": False}
+        if compall:
+            show = {"raw": True, "raw_l": True, "sm": True, "sm_l": True}
+        elif comp:
+            if sm:
+                show["sm"] = True; show["sm_l"] = True
+            else:
+                show["raw"] = True; show["raw_l"] = True
+        else:
+            if sm and lorch:   show["sm_l"] = True
+            elif sm:
+                # Smoothed on: show the unsmoothed curve together with the
+                # smoothed one so they can be compared (e.g. while tuning the
+                # WH-smoothing lambda / order).
+                show["raw"] = True; show["sm"] = True
+            elif lorch:        show["raw_l"] = True
+            else:              show["raw"] = True
+
+        def _set_panel(curves):
+            # curves: list of (attr_name, show_key); curves[0] must be the raw base.
+            any_shown = False
+            for attr, key in curves:
+                c = getattr(self, attr, None)
+                if c is not None:
+                    vis = bool(show[key])
+                    c.setVisible(vis)
+                    any_shown = any_shown or vis
+            # If the requested variant doesn't exist (e.g. an xyz panel without a
+            # smoothed/Lorch curve), fall back to the raw base so the panel is
+            # never left blank.
+            if not any_shown:
+                base = getattr(self, curves[0][0], None)
+                if base is not None:
+                    base.setVisible(True)
+
+        _set_panel([("fq_main_curve", "raw"), ("fq_lorch_curve", "raw_l"),
+                    ("fq_smoothed_curve", "sm"), ("fq_smoothed_lorch_curve", "sm_l")])
+        _set_panel([("gr_main_curve", "raw"), ("gr_lorch_curve", "raw_l"),
+                    ("gr_smoothed_curve", "sm"), ("gr_smoothed_lorch_curve", "sm_l")])
+        # Only set curve visibility here; do NOT force the F(q)/G(r) panels on.
+        # Panel visibility is the user's choice (legend checkboxes), and this
+        # method also runs on every re-plot (e.g. moving the background-scale
+        # slider) -- forcing panels on there would resurrect panels the user
+        # hid. Autorange only visible panels that the user has NOT zoomed (a
+        # zoomed panel keeps its view; the toggled curve stays in range anyway).
+        zoomed = getattr(self, "_user_zoomed", [False, False, False, False])
+        if len(self.plots) > 2 and self.plots[2].isVisible() and not zoomed[2]:
             self._autorange_and_fix_x0(2)
-        if self.gr_smoothed_curve:
-            self.gr_smoothed_curve.setVisible(checked)
-            self.enable_graphs(enable_gr=True)
+        if len(self.plots) > 3 and self.plots[3].isVisible() and not zoomed[3]:
             self._autorange_and_fix_x0(3)
 
     def plot_under_cursor(self, global_pos):
@@ -1152,6 +1387,39 @@ class PlotWindow(QMainWindow):
                 vb = plot.getViewBox()
                 vb.setMouseMode(pg.ViewBox.PanMode if self.left_button_pan_enabled else pg.ViewBox.RectMode)
 
+    def _mark_user_zoomed(self, idx):
+        try:
+            if 0 <= idx < len(self._user_zoomed):
+                self._user_zoomed[idx] = True
+        except Exception:
+            pass
+
+    def _is_zoomed(self, idx):
+        """True if the panel's current view spans notably less than its data
+        extent (i.e. the user has zoomed in). Deterministic — does not rely on
+        the manual-range signal, which can miss some zoom interactions."""
+        try:
+            vb = self.plots[idx].getViewBox()
+            (vx0, vx1), (vy0, vy1) = vb.viewRange()
+            b = vb.childrenBounds()
+            if not b:
+                return bool(self._user_zoomed[idx]) if idx < len(self._user_zoomed) else False
+            zoomed = False
+            if b[0] is not None:
+                dsx = float(b[0][1]) - float(b[0][0])
+                if dsx > 0 and (float(vx1) - float(vx0)) < 0.98 * dsx:
+                    zoomed = True
+            if b[1] is not None:
+                dsy = float(b[1][1]) - float(b[1][0])
+                if dsy > 0 and (float(vy1) - float(vy0)) < 0.98 * dsy:
+                    zoomed = True
+            return zoomed
+        except Exception:
+            try:
+                return bool(self._user_zoomed[idx])
+            except Exception:
+                return False
+
     def reset_zoom_on_hovered_plot(self):
         global_pos = QCursor.pos()
         plot = self.plot_under_cursor(global_pos)
@@ -1159,6 +1427,10 @@ class PlotWindow(QMainWindow):
             return
         try:
             idx = self.plots.index(plot)
+            # R returns this panel to auto-scaling: clear its user-zoom flag so
+            # later parameter changes auto-fit it again.
+            if 0 <= idx < len(self._user_zoomed):
+                self._user_zoomed[idx] = False
             self._autorange_and_fix_x0(idx)
         except Exception:
             try:
@@ -1199,7 +1471,13 @@ class PlotWindow(QMainWindow):
         # A Compton curve is neither experimental data nor calculated (.xyz)
         # output; it has its own save option below.
         is_calculated = not is_experimental and not is_compton
-        v.addWidget(QLabel("--- Experimental Data ---", dlg))
+        cols = QHBoxLayout()
+        exp_col = QVBoxLayout()
+        cal_col = QVBoxLayout()
+        compton_col = QVBoxLayout()
+
+        # --- Experimental Data column ---
+        exp_col.addWidget(QLabel("--- Experimental Data ---", dlg))
         checks_core = []
         core_labels = [
             ("I(q)", 0, ".iq"),
@@ -1213,22 +1491,15 @@ class PlotWindow(QMainWindow):
             cb.setChecked(False)
             has_data = False
             try:
-                if is_multi_plot and self.cached_xs:
-                    xs_src = self.cached_xs[0]
-                    has_data = (
-                        xs_src is not None and len(xs_src) > idx and xs_src[idx] is not None and len(xs_src[idx]) > 0
-                    )
-                else:
-                    xs_src = self.xs
-                    has_data = (
-                        xs_src is not None and len(xs_src) > idx and xs_src[idx] is not None and len(xs_src[idx]) > 0
-                    )
+                xs_src = self.cached_xs[0] if (is_multi_plot and self.cached_xs) else self.xs
+                has_data = xs_src is not None and len(xs_src) > idx and xs_src[idx] is not None and len(xs_src[idx]) > 0
             except Exception:
                 pass
             if not (has_data and is_experimental):
                 cb.setEnabled(False)
-            v.addWidget(cb)
+            exp_col.addWidget(cb)
             checks_core.append(cb)
+        # F(q) variants are listed before G(r) variants.
         extras_def = [
             ("Original S(q)", 1, lambda: self.sq_original_data, "_Sq_original", ".sq"),
             (
@@ -1241,13 +1512,16 @@ class PlotWindow(QMainWindow):
             ("<f^2>", 1, lambda: self.mean_sq_fi, "_f2", ".dat"),
             ("<f>^2", 1, lambda: self.sq_mean_fi, "_favg2", ".dat"),
             ("Smoothed F(q)", 2, lambda: self.fq_smoothed_data, "_Fq_smoothed", ".fq"),
-            (
-                "Smoothed G(r)",
-                3,
-                lambda: self.gr_smoothed_data[1] if self.gr_smoothed_data else None,
-                "_Gr_smoothed",
-                ".gr",
-            ),
+            ("Lorch F(q)", 2, lambda: self.fq_lorch_data[1] if getattr(self, "fq_lorch_data", None) else None,
+             "_Fq_lorch", ".fq"),
+            ("Smoothed Lorch F(q)", 2, lambda: self.fq_smoothed_lorch_data[1] if getattr(self, "fq_smoothed_lorch_data", None) else None,
+             "_Fq_smoothed_lorch", ".fq"),
+            ("Smoothed G(r)", 3, lambda: self.gr_smoothed_data[1] if self.gr_smoothed_data else None,
+             "_Gr_smoothed", ".gr"),
+            ("Lorch G(r)", 3, lambda: self.gr_lorch_data[1] if getattr(self, "gr_lorch_data", None) else None,
+             "_Gr_lorch", ".gr"),
+            ("Smoothed Lorch G(r)", 3, lambda: self.gr_smoothed_lorch_data[1] if getattr(self, "gr_smoothed_lorch_data", None) else None,
+             "_Gr_smoothed_lorch", ".gr"),
         ]
         checks_extras = []
         if not is_multi_plot:
@@ -1264,12 +1538,47 @@ class PlotWindow(QMainWindow):
                         y_ok = False
                 if not y_ok:
                     cb.setEnabled(False)
-                v.addWidget(cb)
+                exp_col.addWidget(cb)
                 checks_extras.append(cb)
-        # --- Compton ---
-        # The Compton curve lives in the I(q) panel (index 0). Only enabled
-        # when the window is currently showing a computed Compton curve.
-        v.addWidget(QLabel("--- Compton ---", dlg))
+        exp_col.addStretch()
+
+        # --- Calculated (.xyz) column ---
+        cal_col.addWidget(QLabel("--- Calculated (.xyz) ---", dlg))
+        checks_cal = []
+        # Grouped so each Lorch variant follows its base: I(q), S(q),
+        # F(q), F(q) Lorch, G(r), G(r) Lorch. The save mapping in
+        # _save_selected_data uses this exact order.
+        cal_defs = [
+            ("calI(q)", "core", 0),
+            ("calS(q)", "core", 1),
+            ("calF(q)", "core", 2),
+            ("calF(q) Lorch", "lorch", "fq_lorch_data"),
+            ("calG(r)", "core", 3),
+            ("calG(r) Lorch", "lorch", "gr_lorch_data"),
+        ]
+        for text_label, kind, ref in cal_defs:
+            cb = QCheckBox(text_label, dlg)
+            cb.setStyleSheet(CB_ROUND_STYLE)
+            cb.setChecked(False)
+            has_data = False
+            try:
+                if kind == "core":
+                    src = self.cached_xs[0] if is_multi_plot and self.cached_xs else self.xs
+                    has_data = (src is not None and len(src) > ref
+                                and src[ref] is not None and len(src[ref]) > 0)
+                else:
+                    d = getattr(self, ref, None)
+                    has_data = d is not None and d[1] is not None and len(d[1]) > 0
+            except Exception:
+                pass
+            if not (has_data and is_calculated):
+                cb.setEnabled(False)
+            cal_col.addWidget(cb)
+            checks_cal.append(cb)
+        cal_col.addStretch()
+
+        # --- Compton column ---
+        compton_col.addWidget(QLabel("--- Compton ---", dlg))
         cb_compton = QCheckBox("Compton", dlg)
         cb_compton.setStyleSheet(CB_ROUND_STYLE)
         cb_compton.setChecked(False)
@@ -1282,30 +1591,13 @@ class PlotWindow(QMainWindow):
             compton_has_data = False
         if not (is_compton and compton_has_data):
             cb_compton.setEnabled(False)
-        v.addWidget(cb_compton)
+        compton_col.addWidget(cb_compton)
+        compton_col.addStretch()
 
-        v.addWidget(QLabel("--- Calculated (.xyz) ---", dlg))
-        checks_cal = []
-        cal_labels = [
-            ("calI(q)", 0, ".caliq"),
-            ("calS(q)", 1, ".calsq"),
-            ("calF(q)", 2, ".calfq"),
-            ("calG(r)", 3, ".calgr"),
-        ]
-        for text_label, idx, _ext in cal_labels:
-            cb = QCheckBox(text_label, dlg)
-            cb.setStyleSheet(CB_ROUND_STYLE)
-            cb.setChecked(False)
-            has_data = False
-            try:
-                src = self.cached_xs[0] if is_multi_plot and self.cached_xs else self.xs
-                has_data = src is not None and len(src) > idx and src[idx] is not None and len(src[idx]) > 0
-            except Exception:
-                pass
-            if not (has_data and is_calculated):
-                cb.setEnabled(False)
-            v.addWidget(cb)
-            checks_cal.append(cb)
+        cols.addLayout(exp_col)
+        cols.addLayout(cal_col)
+        cols.addLayout(compton_col)
+        v.addLayout(cols)
         btns = QHBoxLayout()
         ok = QPushButton("Save", dlg)
         cancel = QPushButton("Cancel", dlg)
@@ -1495,20 +1787,22 @@ class PlotWindow(QMainWindow):
                 ),
                 ("_f2", 1, lambda: _xy_or_none(1, self.mean_sq_fi), ".dat"),
                 ("_favg2", 1, lambda: _xy_or_none(1, self.sq_mean_fi), ".dat"),
-                (
-                    "_Fq_smoothed",
-                    2,
-                    lambda: _xy_or_none(2, self.fq_smoothed_data),
-                    ".fq",
-                ),
-                (
-                    "_Gr_smoothed",
-                    3,
-                    lambda: (
-                        (self.gr_smoothed_data[0], self.gr_smoothed_data[1]) if self.gr_smoothed_data else (None, None)
-                    ),
-                    ".gr",
-                ),
+                ("_Fq_smoothed", 2, lambda: _xy_or_none(2, self.fq_smoothed_data), ".fq"),
+                ("_Fq_lorch", 2,
+                 lambda: (self.fq_lorch_data[0], self.fq_lorch_data[1]) if getattr(self, "fq_lorch_data", None) else (None, None),
+                 ".fq"),
+                ("_Fq_smoothed_lorch", 2,
+                 lambda: (self.fq_smoothed_lorch_data[0], self.fq_smoothed_lorch_data[1]) if getattr(self, "fq_smoothed_lorch_data", None) else (None, None),
+                 ".fq"),
+                ("_Gr_smoothed", 3,
+                 lambda: (self.gr_smoothed_data[0], self.gr_smoothed_data[1]) if self.gr_smoothed_data else (None, None),
+                 ".gr"),
+                ("_Gr_lorch", 3,
+                 lambda: (self.gr_lorch_data[0], self.gr_lorch_data[1]) if getattr(self, "gr_lorch_data", None) else (None, None),
+                 ".gr"),
+                ("_Gr_smoothed_lorch", 3,
+                 lambda: (self.gr_smoothed_lorch_data[0], self.gr_smoothed_lorch_data[1]) if getattr(self, "gr_smoothed_lorch_data", None) else (None, None),
+                 ".gr"),
             ]
             for i in selected_extras:
                 suf, _ax, getter, ext = extra_sources[i]
@@ -1519,21 +1813,26 @@ class PlotWindow(QMainWindow):
                 except Exception:
                     pass
             if selected_cal:
-                cal_map = {
-                    0: (".caliq", 0),
-                    1: (".calsq", 1),
-                    2: (".calfq", 2),
-                    3: (".calgr", 3),
-                }
+                # Same order as the dialog's cal_defs:
+                # I(q), S(q), F(q), F(q) Lorch, G(r), G(r) Lorch.
+                cal_defs = [
+                    (".caliq", "core", 0),
+                    (".calsq", "core", 1),
+                    (".calfq", "core", 2),
+                    ("_lorch.calfq", "lorch", "fq_lorch_data"),
+                    (".calgr", "core", 3),
+                    ("_lorch.calgr", "lorch", "gr_lorch_data"),
+                ]
                 for idx in selected_cal:
-                    ext, ax = cal_map[idx]
                     try:
-                        if xs_src and ys_src and len(xs_src) > ax and len(ys_src) > ax:
-                            written += _write_xy(
-                                os.path.join(folder, f"{base}{ext}"),
-                                xs_src[ax],
-                                ys_src[ax],
-                            )
+                        ext, kind, ref = cal_defs[idx]
+                        if kind == "core":
+                            if xs_src and ys_src and len(xs_src) > ref and len(ys_src) > ref:
+                                written += _write_xy(os.path.join(folder, f"{base}{ext}"), xs_src[ref], ys_src[ref])
+                        else:
+                            d = getattr(self, ref, None)
+                            if d and d[0] is not None and d[1] is not None:
+                                written += _write_xy(os.path.join(folder, f"{base}{ext}"), d[0], d[1])
                     except Exception:
                         pass
         return written
@@ -1599,22 +1898,60 @@ class PlotWindow(QMainWindow):
             self.main_widget.render(p, QPoint())
             p.end()
             return
-        scale = 6.0
-        w = max(1, int(union_rect.width() * scale))
-        h = max(1, int(union_rect.height() * scale))
-        img = QImage(w, h, QImage.Format.Format_ARGB32)
-        img.fill(QColor(255, 255, 255))
-        p = QPainter(img)
-        p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-        p.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
-        p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+        # Raster (PNG/JPG): render each selected plot with pyqtgraph's own
+        # ImageExporter at a high target width so lines and text stay vector-
+        # crisp, then stack the panels vertically. (QWidget.render() + painter
+        # scaling just upscales pyqtgraph's cached bitmap, which looks blurry.)
+        target_width = 3600  # px; raises effective DPI of the saved figure
+        panel_imgs = None
         try:
-            p.setRenderHint(QPainter.RenderHint.HighQualityAntialiasing, True)
+            from pyqtgraph.exporters import ImageExporter
+            panel_imgs = []
+            for pw in selected:
+                exp = ImageExporter(pw.plotItem)
+                try:
+                    exp.parameters()['width'] = int(target_width)
+                    exp.parameters()['antialias'] = True
+                except Exception:
+                    pass
+                qi = exp.export(toBytes=True)
+                if qi is not None and not qi.isNull():
+                    panel_imgs.append(qi)
+            if not panel_imgs:
+                panel_imgs = None
         except Exception:
-            pass
-        p.scale(scale, scale)
-        self.main_widget.render(p, QPoint())
-        p.end()
+            panel_imgs = None
+
+        if panel_imgs:
+            total_h = sum(im.height() for im in panel_imgs)
+            max_w = max(im.width() for im in panel_imgs)
+            img = QImage(max_w, total_h, QImage.Format.Format_ARGB32)
+            img.fill(QColor(255, 255, 255))
+            p = QPainter(img)
+            y = 0
+            for im in panel_imgs:
+                p.drawImage(0, y, im)
+                y += im.height()
+            p.end()
+        else:
+            # Fallback: high-scale widget render (still better than 1x).
+            scale = 6.0
+            w = max(1, int(union_rect.width() * scale))
+            h = max(1, int(union_rect.height() * scale))
+            img = QImage(w, h, QImage.Format.Format_ARGB32)
+            img.fill(QColor(255, 255, 255))
+            p = QPainter(img)
+            p.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+            p.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
+            p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, True)
+            try:
+                p.setRenderHint(QPainter.RenderHint.HighQualityAntialiasing, True)
+            except Exception:
+                pass
+            p.scale(scale, scale)
+            self.main_widget.render(p, QPoint())
+            p.end()
+
         if ext in (".jpg", ".jpeg"):
             img.save(file_path, "JPG", quality=100)
         else:
