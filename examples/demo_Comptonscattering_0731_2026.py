@@ -35,7 +35,9 @@ parser.add_argument(
 parser.add_argument(
     "--wavelength", type=float, default=0.1665, help="X-ray wavelength in Angstrom (default: %(default)s)."
 )
-parser.add_argument("--alpha", type=int, default=3, choices=[2, 3] help="Breit-Dirac recoil parameter, 2 or 3 (default: %(default)s).")
+parser.add_argument(
+    "--alpha", type=int, default=3, choices=[2, 3], help="Breit-Dirac recoil parameter, 2 or 3 (default: %(default)s)."
+)
 parser.add_argument("--qmin", type=float, default=0.0, help="Minimum q in 1/A (default: %(default)s).")
 parser.add_argument("--qmax", type=float, default=30.0, help="Maximum q in 1/A (default: %(default)s).")
 parser.add_argument("--qstep", type=float, default=0.01, help="q step size in 1/A (default: %(default)s).")
