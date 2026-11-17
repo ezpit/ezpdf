@@ -19,10 +19,10 @@ authors = [
     { name = "Yichen Liu" },
     { name = "Dongyoon Lee" },
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
-    "numpy>=2.5.1",
-    "scipy>=1.18.0",
+    "numpy>=2.4",
+    "scipy>=1.17",
 ]
 
 [project.scripts]
