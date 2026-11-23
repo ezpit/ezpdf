@@ -18,8 +18,7 @@ import numpy as np               # [EN] Library for numerical array processing /
 # [EN] Set base directory for data files
 # [KR] 데이터 파일들이 위치한 기본 경로 설정
 # [Type: str] (문자열)
-input_base = "C:/Users/gkwon/Pycharmprojects/ezpdf/EZPDF_Code_version/data/"
-save_data = "D:/1-Manuscript_2014/EZPDF_EZPIT/"
+input_base = "C:/Users/gkwon/Pycharmprojects/ezpit_local/data/"
 
 # [EN] File paths for Compton scattering databases
 # [KR] 콤프턴 산란 계산에 필요한 데이터베이스 파일 경로들
@@ -176,7 +175,7 @@ else:
 #      '%.17g'는 double 정밀도 값을 다시 읽을 수 있도록 저장합니다.
 #      기존 input_base 경로와 파일명을 유지합니다. 재실행하면 덮어씁니다.
 #      이 예제는 Compton 강도를 계산하므로 G(r) 파일로 저장하지 않습니다.
-np.savetxt(save_data + 'list_compton_scat.chi',
+np.savetxt(input_base + 'list_compton_scat.chi',
            np.column_stack((list_q, list_compton_scat)),
            header='Q_A^-1 Compton_intensity', fmt='%.17g')
 print("Saved Compton scattering file to:", input_base + 'list_compton_scat.chi')

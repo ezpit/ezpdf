@@ -488,6 +488,9 @@ Select several files and delete all. **File drag-and-drop and deleted file recov
 EZPDF panel
 
 ![EZPDF_GUI.png](EZPDF_GUI.png)
+![EZPDF_Basic.png](EZPDF_Basic.png)
+![EZPDF_CAL.png](EZPDF_CAL.png)
+![EZPDF_Compton.png](EZPDF_Compton.png)
 
 Under “File”, “Open” each file, or selected files or files in folder can be loaded.
 “Opne Project” A saved project file” can be loaded.

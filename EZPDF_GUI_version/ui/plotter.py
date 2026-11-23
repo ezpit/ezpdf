@@ -2,7 +2,10 @@
 
 import pyqtgraph as pg
 
-def make_pen(color_tuple, width=2):
+# def make_pen(color_tuple, width=2):
+# 선 두께 기본값을 2 -> 1로 변경 (안티앨리어싱과 함께 쓰면 2는 너무 두꺼워 보임)
+# Default line width changed from 2 to 1 (2 looked too thick with antialiasing)
+def make_pen(color_tuple, width=1):
     return pg.mkPen(color=color_tuple, width=width)
 
 def setup_plot(plot_widget, x_label, y_label):

@@ -1790,18 +1790,45 @@ def detect_header_lines(path, min_cols=2):
     return skip
 
 
+def _read_numeric_text(path, min_cols=2, usecols=(0, 1)):
+    """Read numeric text independently of suffix; skip text headers/comments.
+    확장자와 무관하게 숫자 열을 읽고 텍스트 헤더와 주석을 건너뜁니다.
+    """
+    import re
+    raw = open(path, 'rb').read()
+    if raw.startswith((b'\xff\xfe', b'\xfe\xff')):
+        text = raw.decode('utf-16')
+    else:
+        try:
+            text = raw.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            text = raw.decode('latin-1')
+    if any(ord(c) < 32 and c not in '\t\r\n' for c in text):
+        raise ValueError('Not a supported numeric text file: ' + str(path))
+    cols = tuple(usecols)
+    required = max(min_cols, max(cols) + 1)
+    rows = []
+    for line in text.splitlines():
+        s = line.strip()
+        if not s or s.startswith(('#', '!', ';', '%', '//')):
+            continue
+        parts = re.split(r'[\s,;]+', s)
+        if len(parts) < required:
+            continue
+        try:
+            values = [float(v.replace('D', 'E').replace('d', 'e'))
+                      for v in parts[:required]]
+        except ValueError:
+            continue
+        if not np.all(np.isfinite(values)):
+            raise ValueError('Non-finite numeric data in ' + str(path))
+        rows.append([values[c] for c in cols])
+    if len(rows) < 2:
+        raise ValueError('At least two rows of numeric data are required: ' + str(path))
+    return np.asarray(rows, dtype=float)
+
 def load_qiq_file(path, min_cols=2, usecols=(0, 1)):
-    """
-    [EN] Load Q vs I(q) data from file using automatic header detection.
-    [KR] 헤더 자동 감지 기능을 사용하여 파일에서 Q vs I(q) 데이터를 로드합니다.
-    """
-    skip = detect_header_lines(path, min_cols=min_cols)
-    with open(path, "rb") as f:
-        raw = f.read()
-    text = raw.decode("latin1")  # [EN] Decode using latin1 to avoid errors / [KR] 인코딩 오류 방지
-    buf = io.StringIO(text)
-    data = np.loadtxt(buf, skiprows=skip, usecols=usecols)
-    return data
+    return _read_numeric_text(path, min_cols=min_cols, usecols=usecols)
 
 
 # =============================================================================

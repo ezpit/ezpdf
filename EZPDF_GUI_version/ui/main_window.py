@@ -374,6 +374,23 @@ class PDFApp(QMainWindow):
         self.init_help_menu()
         self.init_ui()
 
+        # 프로그램 시작 시의 파라미터(기본값)를 저장해 두었다가 New Project에서 사용
+        # Remember the start-up (default) parameters for New Project
+        try:
+            self._default_parameters = {
+                "basic": dict(self.control_panel.get_basic_parameters()),
+                "pdf": dict(self.control_panel.get_pdf_parameters()),
+                "cal": dict(self.control_panel.get_cal_parameters()),
+                "compton": dict(self.control_panel.get_compton_parameters()),
+            }
+            # get_basic_parameters()는 조성 칸이 비어 있으면 "C 1 O 2"를 대신 돌려주므로,
+            # 기본값에는 칸의 실제 내용(시작 때는 빈칸)을 저장한다.
+            # get_basic_parameters() returns "C 1 O 2" for an empty composition field,
+            # so store the field's real text (empty at start-up) as the default.
+            self._default_parameters["basic"]["composition"] = self.control_panel.composition_input.text()
+        except Exception:
+            self._default_parameters = {}
+
         # Apply default Light theme - 기본 라이트 테마 적용
         self.setStyleSheet(LIGHT_QSS)
 
@@ -427,6 +444,11 @@ class PDFApp(QMainWindow):
         open_menu.addAction(open_file_action)
         open_menu.addAction(open_folder_action)
         open_menu.addAction(open_project_action)
+        # New Project: 로드된 파일을 모두 없애고 파라미터를 기본값으로 되돌린다
+        # New Project: clear all loaded files and reset parameters to defaults
+        new_project_action = QAction("New Project", self)
+        new_project_action.triggered.connect(self.new_project)
+        file_menu.addAction(new_project_action)
         file_menu.addMenu(open_menu)
 
         file_menu.addAction(save_project_action)
@@ -601,6 +623,88 @@ class PDFApp(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Save Error", f"Failed to save project file:\n{e}")
 
+    def new_project(self):
+        """Start a new project in this window.
+
+        Removes every loaded file from the list, closes all plot windows and
+        resets every tab (Basic, PDF, CAL, Compton) to the parameters the
+        program started with. Files on disk are not touched.
+
+        [KR] 이 창에서 새 프로젝트를 시작한다. 로드된 파일을 목록에서 모두
+        없애고, 그래프 창을 모두 닫고, 모든 탭(Basic, PDF, CAL, Compton)의
+        파라미터를 프로그램 시작 때의 기본값으로 되돌린다.
+        디스크에 있는 파일 자체는 지우지 않는다.
+        """
+        # [이전 방식] 새 EZPDF 창을 하나 더 여는 코드 (보관용 주석)
+        # [Previous behavior] opened another EZPDF window (kept as comments)
+        # new_window = PDFApp()
+        # # 새 창이 지금 창과 정확히 겹치지 않도록 조금 옮겨서 띄운다.
+        # # Offset the new window slightly so it does not sit exactly on top.
+        # try:
+        #     geo = self.geometry()
+        #     new_window.setGeometry(geo.x() + 30, geo.y() + 30, geo.width(), geo.height())
+        # except Exception:
+        #     pass
+        # new_window.show()
+        # # 파이썬이 새 창 객체를 지우지 않도록 참조를 보관한다.
+        # # Keep a reference so Python does not garbage-collect the new window.
+        # app = QApplication.instance()
+        # if not hasattr(app, "_ezpdf_windows"):
+        #     app._ezpdf_windows = []
+        # app._ezpdf_windows.append(new_window)
+
+        # 1) 그래프 창을 모두 닫는다 (파일 목록을 지우기 전에)
+        #    Close every plot window (before clearing the file list)
+        old_windows = list(self.plot_windows)
+        if self.plot_window is not None and self.plot_window not in old_windows:
+            old_windows.append(self.plot_window)
+        for window in old_windows:
+            try:
+                window.associated_items = []
+                window.close()
+            except Exception:
+                pass
+        self.plot_window = None
+        self.plot_windows.clear()
+
+        # 2) 파일 목록과 관련 상태를 모두 비운다
+        #    Clear the file list and its related state
+        self.current_path = None
+        self.undo_stack.clear()
+        if hasattr(self.control_panel, "_bkg_warned_pairs"):
+            self.control_panel._bkg_warned_pairs.clear()
+        self.file_panel.file_list.clear()
+        try:
+            self.file_panel._sort_col = None
+            self.file_panel._sort_dir = 'asc'
+            self.file_panel._load_order = []
+            self.file_panel.file_list.header().setSortIndicatorShown(False)
+        except Exception:
+            pass
+        self.loaded_files.clear()
+
+        # 3) 모든 탭의 파라미터를 시작 때의 기본값으로 되돌린다
+        #    Reset every tab to the start-up (default) parameters
+        defaults = getattr(self, "_default_parameters", {}) or {}
+        try:
+            if "basic" in defaults: self.control_panel.set_basic_parameters(dict(defaults["basic"]))
+            if "pdf" in defaults: self.control_panel.set_pdf_parameters(dict(defaults["pdf"]))
+            if "cal" in defaults: self.control_panel.set_cal_parameters(dict(defaults["cal"]))
+            if "compton" in defaults: self.control_panel.set_compton_parameters(dict(defaults["compton"]))
+        except Exception as e:
+            QMessageBox.warning(self, "Parameter Error", f"Failed to reset some parameters:\n{e}")
+
+        # "Open in New Graphs"는 파라미터에 포함되지 않아 set_pdf_parameters()가
+        # 상태를 그대로 유지하므로, 여기서 시작 상태(선택 안 됨)로 되돌린다.
+        # "Open in New Graphs" is not part of the saved parameters and
+        # set_pdf_parameters() keeps its state, so reset it to unchecked here.
+        try:
+            self.control_panel.new_window_checkbox.setChecked(False)
+        except Exception:
+            pass
+
+        self.label.setText("New project.")
+
     def open_project(self):
         # Open and load project file - 프로젝트 파일 열기 및 로드
         proj_filter = "EZPDF Project (*.proj);;All Files (*)"
@@ -684,10 +788,7 @@ class PDFApp(QMainWindow):
 
     def select_files(self):
         # Select individual files - 개별 파일들을 선택합니다.
-        file_filter = (
-            "All Supported Files (*.sq *.fq *.iq *.chi *.xy *.dat *.txt *.gr *.xyz *.calsq *.calfq *.caliq *.calgr *.compton);;"
-            "All Files (*)"
-        )
+        file_filter = "All Files (*);;Common Data Files (*.iq *.chi *.qchi *.txt *.csv *.dat *.sq *.fq *.gr *.xyz)"
         files, _ = QFileDialog.getOpenFileNames(self, "Select Files", self._last_dir, file_filter)
         if files:
             self._last_dir = os.path.dirname(files[0])

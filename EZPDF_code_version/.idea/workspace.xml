@@ -2,11 +2,19 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="4890037d-cfa8-4311-8d73-207b3cfbb6c6" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/model/math_functions.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/model/math_functions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/controller/graph_controller.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/controller/graph_controller.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/model/dataloader.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/model/dataloader.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/model/helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/model/helpers.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/control_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/control_panel.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/file_panel.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/file_panel.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/main_window.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/main_window.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/ui_helpers.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/ui_helpers.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/plotter.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/plotter.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/viewer.py" beforeDir="false" afterPath="$PROJECT_DIR$/../EZPDF_GUI_version/ui/viewer.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/demo_Comptonscattering_0731_2026.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/demo_Comptonscattering_0731_2026.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/demo_experimental_data_testingcode_0731_2026.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/demo_experimental_data_testingcode_0731_2026.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/examples/demo_xyz_model_0731_2026.py" beforeDir="false" afterPath="$PROJECT_DIR$/examples/demo_xyz_model_0731_2026.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/proc/processing.py" beforeDir="false" afterPath="$PROJECT_DIR$/proc/processing.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../docs/tutorial.md" beforeDir="false" afterPath="$PROJECT_DIR$/../docs/tutorial.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -24,7 +32,7 @@
 }</component>
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
-    &quot;url&quot;: &quot;https://github.com/ezpit/ezpit&quot;,
+    &quot;url&quot;: &quot;https://github.com/ezpit/ezpdf.git&quot;,
     &quot;accountId&quot;: &quot;e3939d0e-35b8-4f2e-9219-3d28d36dbdf0&quot;
   }
 }</component>
@@ -46,8 +54,9 @@
     &quot;Python.demo_pavol_fft_padding.executor&quot;: &quot;Run&quot;,
     &quot;Python.demo_xyz_model_0731_2026.executor&quot;: &quot;Run&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/gkwon/Pycharmprojects/ezpit/EZPDF_Code_Updated&quot;
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/gkwon/Pycharmprojects/ezpdf/EZPDF_Code_version&quot;
   }
 }</component>
   <component name="SharedIndexes">

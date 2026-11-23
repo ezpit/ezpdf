@@ -340,44 +340,54 @@ def detect_data_start(path):
     return 0  # Default if no valid data lines are found
 
 
+def _read_numeric_text(path, min_cols=2, usecols=(0, 1)):
+    """Read numeric text independently of suffix; skip text headers/comments.
+    확장자와 무관하게 숫자 열을 읽고 텍스트 헤더와 주석을 건너뜁니다.
+    """
+    import re
+    raw = open(path, 'rb').read()
+    if raw.startswith((b'\xff\xfe', b'\xfe\xff')):
+        text = raw.decode('utf-16')
+    else:
+        try:
+            text = raw.decode('utf-8-sig')
+        except UnicodeDecodeError:
+            text = raw.decode('latin-1')
+    if any(ord(c) < 32 and c not in '\t\r\n' for c in text):
+        raise ValueError('Not a supported numeric text file: ' + str(path))
+    cols = tuple(usecols)
+    required = max(min_cols, max(cols) + 1)
+    rows = []
+    for line in text.splitlines():
+        s = line.strip()
+        if not s or s.startswith(('#', '!', ';', '%', '//')):
+            continue
+        parts = re.split(r'[\s,;]+', s)
+        if len(parts) < required:
+            continue
+        try:
+            values = [float(v.replace('D', 'E').replace('d', 'e'))
+                      for v in parts[:required]]
+        except ValueError:
+            continue
+        if not np.all(np.isfinite(values)):
+            raise ValueError('Non-finite numeric data in ' + str(path))
+        rows.append([values[c] for c in cols])
+    if len(rows) < 2:
+        raise ValueError('At least two rows of numeric data are required: ' + str(path))
+    return np.asarray(rows, dtype=float)
+
 def extract_data(path):
-    """
-    Attempts to extract experimental beamline data (two columns) from a path.
+    data = _read_numeric_text(path)
+    return data[:, 0], data[:, 1]
 
-    Automatically skips any header and handles the file variety produced by
-    common reduction tools: plain two-column .dat files, pyFAI / Fit2d '.xy'
-    files with '#' headers, JSON-style '#' headers, Windows or Unix line
-    endings, non-UTF-8 header bytes (e.g. 'µm'), and whitespace- or
-    comma-separated columns.
-    """
+
+def is_numeric_data_file(path):
     try:
-        # latin-1 decodes every byte without error; we only need the numbers.
-        with open(path, 'r', encoding='latin-1') as f:
-            lines = f.readlines()
-
-        x_vals, y_vals = [], []
-        for line in lines:
-            s = line.strip()
-            if not s or s[0] in ('#', '!', ';', '%'):
-                continue
-            parts = s.replace(',', ' ').split()
-            if len(parts) < 2:
-                continue
-            try:
-                a = float(parts[0])
-                b = float(parts[1])
-            except ValueError:
-                continue
-            x_vals.append(a)
-            y_vals.append(b)
-
-        if len(x_vals) < 2:
-            raise ValueError("No two-column numeric data found.")
-
-        return np.asarray(x_vals, dtype=float), np.asarray(y_vals, dtype=float)
-    except Exception as e:
-        print(f"[Error] Failed to load or parse file '{path}': {e}")
-        return
+        _read_numeric_text(path)
+        return True
+    except (OSError, ValueError, UnicodeError):
+        return False
 
 
 _AFF_VALID_SYMBOLS = None

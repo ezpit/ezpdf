@@ -431,7 +431,10 @@ class ControlPanel(QWidget):
         self.new_window_checkbox.setChecked(False)
         # -----------------------------------------------
 
-        self.pdf_description = QLabel("For .chi, .iq, .sq, .fq, .gr, .caliq, .calsq, .calfq, .calgr files")
+        # self.pdf_description = QLabel("For .chi, .iq, .sq, .fq, .gr, .caliq, .calsq, .calfq, .calgr files")
+        # 실제로 읽을 수 있는 확장자(.xy, .dat, .txt 추가)로 안내 문구 업데이트
+        # Updated to list every extension the PDF tab actually reads (.xy, .dat, .txt added)
+        self.pdf_description = QLabel("For .chi, .iq, .xy, .dat, .txt, .sq, .fq, .gr, .caliq, .calsq, .calfq, .calgr files")
         f = self.pdf_description.font()
         f.setPointSize(8)
         self.pdf_description.setFont(f)
@@ -730,6 +733,8 @@ class ControlPanel(QWidget):
         self.alpha_dropdown.addItems(["2", "3"])
         self.alpha_dropdown.setCurrentText("3")
         compton_layout.addRow("Alpha:", self.alpha_dropdown)
+        # 알파값을 바꾸면 Compton 그래프를 다시 계산 / Recompute Compton when alpha changes
+        self.alpha_dropdown.currentIndexChanged.connect(self.send_update)
 
         self.compton_composition_input = QLineEdit()
         self.compton_composition_input.setPlaceholderText(
@@ -1148,6 +1153,15 @@ class ControlPanel(QWidget):
                 # was chosen first and a mismatching sample was opened later.
                 self._warn_if_bkg_q_mismatch(items)
                 update_current_graph(items, self, window)
+            elif getattr(window, "is_compton", False):
+                # Calculate Compton으로 그린 창은 파일과 연결되어 있지 않으므로
+                # (associated_items = None) 위에서 건너뛰어졌다. 이런 창은
+                # Compton 탭의 현재 파라미터(파장, 알파, 조성, q_max, q_min,
+                # q_step)로 다시 계산해서 그린다.
+                # A window drawn by "Calculate Compton" has no associated file,
+                # so it was skipped above; recompute it from the Compton tab.
+                from controller.graph_controller import update_compton_graph
+                update_compton_graph(self, window)
 
     def _warn_if_bkg_q_mismatch(self, items):
         """Show the q-axis warning once for each sample/background pair."""

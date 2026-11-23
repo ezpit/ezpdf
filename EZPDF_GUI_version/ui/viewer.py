@@ -1749,7 +1749,41 @@ class PlotWindow(QMainWindow):
                     exp.parameters()['antialias'] = True
                 except Exception:
                     pass
-                qi = exp.export(toBytes=True)
+                # qi = exp.export(toBytes=True)
+                # 저장 그림은 화면보다 몇 배 크게(약 3600 px) 만들어지지만, 선은 항상
+                # 같은 픽셀 두께로 그려져서 그림에서는 선이 가늘고 흐리게 보인다.
+                # 그래서 저장하는 순간에만 선 두께를 (저장 폭 / 화면 폭) 배로 키우고,
+                # 저장이 끝나면 원래 선으로 되돌린다. 화면 표시에는 영향이 없다.
+                # The saved image is several times wider than the on-screen plot, but
+                # lines keep the same pixel width, so they look thin and faint in the
+                # file. Thicken them by (export width / screen width) only while
+                # exporting, then restore the original pens. The screen is unchanged.
+                _saved_pens = []
+                try:
+                    _src_w = pw.plotItem.sceneBoundingRect().width()
+                    _line_scale = float(target_width) / _src_w if _src_w > 0 else 1.0
+                    if _line_scale > 1.0:
+                        for _item in pw.plotItem.listDataItems():
+                            _orig = _item.opts.get('pen', None)
+                            if _orig is None:
+                                continue
+                            _qpen = pg.mkPen(_orig)
+                            if _qpen.style() == Qt.PenStyle.NoPen:
+                                continue
+                            _w = _qpen.widthF() if _qpen.widthF() > 0 else 1.0
+                            _qpen.setWidthF(_w * _line_scale)
+                            _saved_pens.append((_item, _orig))
+                            _item.setPen(_qpen)
+                except Exception:
+                    pass
+                try:
+                    qi = exp.export(toBytes=True)
+                finally:
+                    for _item, _orig in _saved_pens:
+                        try:
+                            _item.setPen(_orig)
+                        except Exception:
+                            pass
                 if qi is not None and not qi.isNull():
                     panel_imgs.append(qi)
             if not panel_imgs:
@@ -1917,6 +1951,9 @@ class PlotWindow(QMainWindow):
             pw = self.plots[idx]
             vb = pw.getViewBox()
             xmax = None
+            # 보이는 데이터의 최소 x값 (예: r_min=10이면 10부터 그리기 위해)
+            # Smallest x of the visible data (e.g. start at 10 when r_min = 10)
+            xmin = None
             ymin = None
             ymax = None
 
@@ -1962,6 +1999,8 @@ class PlotWindow(QMainWindow):
                     if len(x_finite) == 0 or len(y_finite) == 0:
                         continue
                     cur_xmax = float(x_finite.max())
+                    cur_xmin = float(x_finite.min())
+                    if xmin is None or cur_xmin < xmin: xmin = cur_xmin
                     cur_ymin = float(y_finite.min())
                     cur_ymax = float(y_finite.max())
                     if xmax is None or cur_xmax > xmax: xmax = cur_xmax
@@ -1975,7 +2014,11 @@ class PlotWindow(QMainWindow):
                 if padding == 0:
                     padding = 1.0
                 pw.setYRange(ymin - padding, ymax + padding, padding=0.0)
-                pw.setXRange(0.0, xmax, padding=0.0)
+                # pw.setXRange(0.0, xmax, padding=0.0)
+                # x축을 항상 0부터 그리지 않고, 실제 데이터 범위(최소~최대)에 맞춘다.
+                # Fit the x axis to the actual data range instead of always starting at 0.
+                x_start = xmin if (xmin is not None and xmin < xmax) else 0.0
+                pw.setXRange(x_start, xmax, padding=0.0)
             else:
                 vb.autoRange()
                 self._force_x_from_zero(pw)

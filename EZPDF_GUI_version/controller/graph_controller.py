@@ -1,3 +1,4 @@
+from model.helpers import is_numeric_data_file
 # controller/graph_controller.py
 
 from PySide6.QtWidgets import QTreeWidgetItem, QMessageBox
@@ -130,14 +131,11 @@ def load_selected_files(selected_items, label_widget, plot_window_ref, control_p
 
 def get_valid_files(folder, extensions=VALID_EXTENSIONS):
     return sorted(
-        [
-            os.path.join(folder, f)
-            for f in os.listdir(folder)
-            if any(f.lower().endswith(ext) for ext in extensions)
-        ],
-        key=lambda f: os.path.getmtime(f),
-        reverse=True
-    )
+        [os.path.join(folder, name) for name in os.listdir(folder)
+         if os.path.isfile(os.path.join(folder, name))
+         and (name.lower().endswith('.xyz')
+              or is_numeric_data_file(os.path.join(folder, name)))],
+        key=os.path.getmtime, reverse=True)
 
 
 def add_files_to_list_widget(file_list_widget, label_widget, source, loaded_files, is_folder=True, max_name_length=25, preserve_order=False):
@@ -145,7 +143,7 @@ def add_files_to_list_widget(file_list_widget, label_widget, source, loaded_file
         valid_file_paths = get_valid_files(source)
     else:
         valid_file_paths = [
-            f for f in source if any(f.lower().endswith(ext) for ext in VALID_EXTENSIONS)
+            f for f in source if os.path.isfile(f)
         ]
 
     # preserve_order keeps the caller's exact order (e.g. restoring a project's
@@ -420,3 +418,60 @@ def calculate_compton(control_panel):
             pass
 
     return plot_window
+
+
+def update_compton_graph(control_panel, plot_window):
+    """Recompute and redraw the Compton curve in an already-open Compton
+    window when a Compton-tab parameter changes (wavelength, alpha,
+    composition, q_max, q_min, q_step).
+
+    [KR] Compton 탭의 파라미터(파장, 알파, 조성, q_max, q_min, q_step)를 바꾸면
+    이미 열려 있는 Compton 그래프 창을 다시 계산해서 다시 그린다.
+    calculate_compton()은 새 창을 고르거나 만들 수 있으므로, 여기서는
+    지정된 창(plot_window)에만 다시 그린다.
+    """
+    if plot_window is None:
+        return
+    # 그래프 잠금 상태면 업데이트하지 않음 / Do nothing while the graph is locked
+    if hasattr(plot_window, 'is_locked') and plot_window.is_locked():
+        return
+
+    try:
+        q_range, list_compton_scat = get_compton_values(control_panel)
+    except Exception:
+        # 입력 중인 조성이 아직 불완전하거나 이온이 들어 있으면 계산이 실패할 수
+        # 있다. 이때는 오류 창을 띄우지 않고 지금 그래프를 그대로 둔다.
+        # The composition may be incomplete or contain ions while typing;
+        # keep the current curve instead of showing an error.
+        return
+
+    q_range = np.asarray(q_range, dtype=float)
+    list_compton_scat = np.asarray(list_compton_scat, dtype=float)
+    if q_range.size == 0 or list_compton_scat.size == 0:
+        return
+
+    xs = [q_range, [], [], []]
+    ys = [list_compton_scat, [], [], []]
+
+    composition = control_panel.get_compton_parameters().get("composition", "").strip()
+    title = f"Compton ({composition})" if composition else "Compton"
+
+    # 사용자가 확대해 둔 범위는 다시 그린 뒤에도 유지
+    # Keep any panel the user zoomed after the redraw
+    saved_ranges = _capture_plot_ranges(plot_window)
+
+    plot_window.plot_data(
+        xs, ys, None, None, None, None,
+        None, None, None, None, None, None, title, bring_front=False
+    )
+    plot_window.enable_graphs(enable_iq=True, enable_sq=False,
+                              enable_fq=False, enable_gr=False)
+
+    # plot_data()가 is_compton을 False로 되돌리므로 다시 True로 설정하고,
+    # 파일과의 연결도 계속 끊어 둔다 (calculate_compton()과 동일).
+    # plot_data() resets is_compton, so set it again and keep the window
+    # detached from any file (same as calculate_compton()).
+    plot_window.is_compton = True
+    plot_window.associated_items = None
+
+    _restore_saved_ranges(plot_window, saved_ranges)

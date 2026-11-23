@@ -25,6 +25,13 @@ def _pack(**kw):
 
 
 def get_graph_data(path, extension, control_panel, multiple_graphs=False):
+    # Unknown text suffixes are interpreted as intensity data.
+    # 알 수 없는 확장자의 숫자 텍스트는 강도 데이터로 처리합니다.
+    extension = extension.lower()
+    if extension not in {'.xyz', '.iq', '.chi', '.xy', '.dat', '.txt',
+                         '.sq', '.fq', '.gr', '.caliq', '.calfq', '.calsq',
+                         '.calgr', '.compton'}:
+        extension = '.iq'
     if extension in ['.iq', '.chi', '.xy', '.dat', '.txt', '.sq', '.fq', '.gr', '.caliq', '.calfq', '.calsq', '.calgr', '.compton']:
         x_raw_input, y_raw_input = extract_data(path)
         x, y = x_raw_input, y_raw_input

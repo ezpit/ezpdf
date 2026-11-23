@@ -18,35 +18,10 @@ import numpy as np               # [EN] Library for numerical array processing /
 # EN: Select the Debye engine. Neither option changes FFT/integral G(r).
 # KO: Debye 계산 방식 선택. G(r)의 FFT/적분 선택과는 별개입니다.
 IQ_METHOD = "original" #"vectorized"  # "original" or "vectorized"
-
 # EN: Smaller blocks reduce temporary memory. Do not allocate all pairs x Q.
 # KO: 작은 블록은 임시 메모리를 줄입니다. 모든 원자쌍 x Q를 한 번에 만들지 않습니다.
-# Chunk sizes control how much work is processed at once, not the total
-# number of atoms, atom pairs, or Q points included in the calculation.
-# 청크 크기는 한 번에 처리하는 계산량을 정하며, 계산에 포함되는 전체
-# 원자 수, 원자쌍 수 또는 Q점 수를 제한하지 않습니다.
-#
-# Keep these defaults when the number of atoms in the XYZ file changes.
-# All atom pairs and Q points are processed in successive chunks;
-# any smaller final chunk is handled automatically.
-# XYZ 파일의 원자 수가 달라져도 아래 기본값을 그대로 사용하시면 됩니다.
-# 모든 원자쌍과 Q점을 순차적으로 나누어 계산하며,
-# 마지막에 남는 작은 묶음도 자동으로 처리합니다.
-#
-# These settings apply only when IQ_METHOD = "vectorized".
-# 아래 설정은 IQ_METHOD = "vectorized"일 때만 적용됩니다.
-PAIR_CHUNK_SIZE = 4096  # Maximum atom pairs per chunk / 묶음당 최대 원자쌍 수
-Q_CHUNK_SIZE = 64      # Maximum Q points per chunk / 묶음당 최대 Q점 수
-
-# Smaller chunks reduce temporary memory usage but may increase runtime.
-# Q_CHUNK_SIZE does not change qstep or the Q range.
-# 작은 청크는 임시 메모리 사용량을 줄이지만 계산 시간이 늘어날 수 있습니다.
-# Q_CHUNK_SIZE는 qstep이나 Q 범위를 변경하지 않습니다.
-#
-# The current implementation still stores the full atom-distance matrix;
-# chunking does not reduce the memory needed for that matrix.
-# 현재 구현은 전체 원자 간 거리 행렬을 메모리에 저장하므로,
-# 청크 크기를 줄여도 해당 행렬에 필요한 메모리는 줄어들지 않습니다.
+PAIR_CHUNK_SIZE = 4096
+Q_CHUNK_SIZE = 64
 
 # [EN] Define file paths (String)
 # [KR] 파일 경로 설정 (문자열 변수)

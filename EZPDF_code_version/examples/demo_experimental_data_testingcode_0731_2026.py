@@ -22,7 +22,7 @@ import timeit                       # [EN] Tool for measuring execution time / [
 
 # [EN] File paths for atomic databases (Input files)
 # [KR] 분석에 필요한 원자 데이터베이스 파일들의 경로를 설정합니다.
-input_base = "C:/Users/gkwon/Pycharmprojects/ezpdf/EZPDF_code_version/data/"
+input_base = "C:/Users/gkwon/Pycharmprojects/ezpit/EZPDF_code_version/data/"
 aff_element_file = input_base + 'aff_elementonly.txt'  # [EN] Element symbols / [KR] 원소 기호 파일
 aff_parm_file = input_base + 'aff_parmonly.txt'  # [EN] Scattering parameters / [KR] 산란 인자 파라미터 파일
 
